@@ -1,0 +1,35 @@
+﻿namespace WebRequesterDll.Models
+{
+    public class WebReponseProps : IWebReponseProps
+    {
+
+        /// <summary>
+        /// Starting url
+        /// </summary>
+        public required string StartUrl { get; set; }
+
+        /// <summary>
+        /// Final url after redirects (if any)
+        /// </summary>
+        public string FinalUrl { get; set; } = "";
+        /// <summary>
+        /// Will compare start url from final url and indicate if there was a redirect. This will work with either GetFromWeb or GetFromWebWithRedirects
+        /// </summary>
+        public bool IsRedirected => StartUrl != FinalUrl;
+        /// <summary>
+        /// If called by GetFromWebWithRedirects method, contains the full redirect chain.
+        /// </summary>
+        public List<string> RedirectChain { get; set; } = [];
+        /// <summary>
+        /// If the content is saved to a file, this is the path to that file.
+        /// </summary>
+        public string PathToContent { get; set; }
+        public long ContentLength { get; set; }
+        public int StatusCode { get; set; }
+        public string CharSet { get; set; }
+        public string MediaType { get; set; }
+        public Dictionary<string, string> ResponseHeaders { get; set; }
+        public Dictionary<string, string> ContentHeaders { get; set; }
+
+    }
+}

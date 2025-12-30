@@ -1,2 +1,5 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿using WebRequesterDll;
+
+var response = await Requester.GetFromWeb("https://jeff32819.com");
+Console.ReadKey();
+
