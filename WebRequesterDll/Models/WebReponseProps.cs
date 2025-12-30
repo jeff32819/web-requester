@@ -2,7 +2,6 @@
 {
     public class WebReponseProps : IWebReponseProps
     {
-
         /// <summary>
         /// Starting url
         /// </summary>
@@ -11,7 +10,7 @@
         /// <summary>
         /// Final url after redirects (if any)
         /// </summary>
-        public string FinalUrl { get; set; } = "";
+        public string FinalUrl { get; set; } = string.Empty;
         /// <summary>
         /// Will compare start url from final url and indicate if there was a redirect. This will work with either GetFromWeb or GetFromWebWithRedirects
         /// </summary>
@@ -19,17 +18,13 @@
         /// <summary>
         /// If called by GetFromWebWithRedirects method, contains the full redirect chain.
         /// </summary>
-        public List<string> RedirectChain { get; set; } = [];
-        /// <summary>
-        /// If the content is saved to a file, this is the path to that file.
-        /// </summary>
-        public string PathToContent { get; set; }
+        public List<string> RedirectChain { get; set; } = new();
+
         public long ContentLength { get; set; }
         public int StatusCode { get; set; }
-        public string CharSet { get; set; }
-        public string MediaType { get; set; }
-        public Dictionary<string, string> ResponseHeaders { get; set; }
-        public Dictionary<string, string> ContentHeaders { get; set; }
-
+        public string CharSet { get; set; } = string.Empty;
+        public string MediaType { get; set; } = string.Empty;
+        public Dictionary<string, string> ResponseHeaders { get; set; } = new();
+        public Dictionary<string, string> ContentHeaders { get; set; } = new();
     }
 }

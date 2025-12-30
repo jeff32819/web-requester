@@ -22,20 +22,10 @@ public static class Requester
         using var client = ClientInit(true);
         var response = await client.GetAsync(startUrl);
 
-        HttpResponseHeaders resonseHeadersRaw = response.Headers;
-        HttpContentHeaders contentHeadersRaw = response.Content.Headers;
-
-        Dictionary<string, string> contentHeaders = contentHeadersRaw
-            .ToDictionary(
-                h => h.Key,
-                h => string.Join("|", h.Value) // join multiple values
-            );
-
-        Dictionary<string, string> resonseHeaders = resonseHeadersRaw
-            .ToDictionary(
-                h => h.Key,
-                h => string.Join("|", h.Value) // join multiple values
-            );
+        var resonseHeadersRaw = response.Headers;
+        var contentHeadersRaw = response.Content.Headers;
+        var contentHeaders = contentHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
+        var resonseHeaders = resonseHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
 
         return new WebResponseResult
         {
@@ -43,7 +33,7 @@ public static class Requester
             Properties = new WebReponseProps
             {
                 StartUrl = startUrl,
-                FinalUrl = response.RequestMessage?.RequestUri?.ToString(),
+                FinalUrl = response.RequestMessage?.RequestUri?.ToString() ?? "null",
                 RedirectChain = [],
                 ContentLength = response.Content.Headers.ContentLength ?? -1,
                 StatusCode = (int)response.StatusCode,
@@ -109,7 +99,7 @@ public static class Requester
             }
             else
             {
-                rv.Properties.FinalUrl = response.RequestMessage?.RequestUri?.ToString();
+                rv.Properties.FinalUrl = response.RequestMessage?.RequestUri?.ToString() ?? "null";
                 rv.Content = await response.Content.ReadAsStringAsync();
                 return rv;
             }
