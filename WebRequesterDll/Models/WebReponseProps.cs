@@ -11,6 +11,7 @@
         /// Final url after redirects (if any)
         /// </summary>
         public string FinalUrl { get; set; } = string.Empty;
+        public Uri? FinalUri => string.IsNullOrEmpty(FinalUrl) ? null : new Uri(FinalUrl);
         /// <summary>
         /// Will compare start url from final url and indicate if there was a redirect. This will work with either GetFromWeb or GetFromWebWithRedirects
         /// </summary>
