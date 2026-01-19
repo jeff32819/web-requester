@@ -21,7 +21,6 @@ public static class Requester
     {
         using var client = ClientInit(true);
         var response = await client.GetAsync(startUrl);
-
         var resonseHeadersRaw = response.Headers;
         var contentHeadersRaw = response.Content.Headers;
         var contentHeaders = contentHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
