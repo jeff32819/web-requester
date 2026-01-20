@@ -1,7 +1,10 @@
 ﻿using Newtonsoft.Json;
 using WebRequesterDll;
 
-var response = await Requester.GetFromWeb("https://jeff32819.com");
+// var response = await Requester.GetFromWeb("https://jeff32819.com");
+// var response = await Requester.GetFromWeb("https://www.jumpstartfitorlando.com/");
+var response = await Requester.GetFromWeb("https://seeworthyconsulting.com/");
+
 Console.WriteLine(JsonConvert.SerializeObject(response.Properties, Formatting.Indented));
 Console.WriteLine();
 Console.WriteLine($"HTML content length = {response.Content.Length}");
