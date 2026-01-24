@@ -21,27 +21,38 @@ public static class Requester
     ///     Get page from web
     /// </summary>
     /// <param name="startUrl"></param>
+    /// <param name="cacheFolder"></param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(string startUrl)
+    public static async Task<WebResponseResult> GetFromWeb(string startUrl, string cacheFolder)
     {
+        CacheService? cacheFileConfig = null;
+        if (!string.IsNullOrEmpty(cacheFolder) && Directory.Exists(cacheFolder))
+        {
+            cacheFileConfig = new CacheService(startUrl, cacheFolder);
+        }
         if (!startUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
             throw new Exception("Can only parse links that start with HTTPS://");
         }
-
+        if (cacheFileConfig != null && cacheFileConfig.Exists())
+        {
+            return cacheFileConfig.Read();
+        }
         using var client = ClientInit(true);
         var response = await Request(client, startUrl);
         if (response.Response == null)
         {
             throw new Exception(response.ErrorMessage);
         }
+
         var resonseHeadersRaw = response.Response.Headers;
         var contentHeadersRaw = response.Response.Content.Headers;
         var contentHeaders = contentHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
         var resonseHeaders = resonseHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
 
-        return new WebResponseResult
+        var webResponseResult = new WebResponseResult
         {
+            IsCached = false,
             Content = await response.Response.Content.ReadAsStringAsync(),
             Properties = new WebReponseProps
             {
@@ -54,9 +65,12 @@ public static class Requester
                 CharSet = response.Response.Content.Headers.ContentType?.CharSet ?? "",
                 MediaType = response.Response.Content.Headers.ContentType?.MediaType ?? "",
                 ResponseHeaders = resonseHeaders,
-                ContentHeaders = contentHeaders
+                ContentHeaders = contentHeaders,
+                CachInfo = cacheFileConfig?.CachInfo
             }
         };
+        cacheFileConfig?.Save(webResponseResult);
+        return webResponseResult;
     }
 
     public static async Task<HttpReponseResult> Request(HttpClient client, string url)
