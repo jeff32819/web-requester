@@ -1,6 +1,6 @@
 ﻿namespace WebRequesterDll.Models
 {
-    public class CachInfoModel
+    public class CacheInfoModel
     {
         /// <summary>
         ///     Has for url

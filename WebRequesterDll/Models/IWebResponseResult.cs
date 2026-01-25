@@ -1,6 +1,4 @@
-﻿using WebRequesterDll.Models;
-
-namespace WebRequestDll.Models;
+﻿namespace WebRequesterDll.Models;
 
 public interface IWebResponseResult
 {
@@ -12,5 +10,5 @@ public interface IWebResponseResult
     /// <summary>
     /// Other properties separated so they are separated from the content for saving.
     /// </summary>
-    WebReponseProps Properties { get; set; }
+    WebReponseInfo Info { get; set; }
 }

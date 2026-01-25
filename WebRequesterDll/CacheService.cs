@@ -22,7 +22,7 @@ public class CacheService
         var basePath = Path.Combine(cacheFolder, uri.Host);
         Directory.CreateDirectory(basePath);
         var hash = url.ToMd5Hash();
-        CachInfo = new CachInfoModel
+        CacheInfo = new CacheInfoModel
         {
             Hash = hash,
             JsonPath = Path.Combine(basePath, $"{hash}.json"),
@@ -30,7 +30,7 @@ public class CacheService
         };
     }
 
-    public CachInfoModel CachInfo { get; }
+    public CacheInfoModel CacheInfo { get; }
     
     /// <summary>
     ///     Save json object to file
@@ -38,8 +38,8 @@ public class CacheService
     /// <param name="request"></param>
     public void Save(WebResponseResult request)
     {
-        File.WriteAllText(CachInfo.HtmlPath, request.Content);
-        File.WriteAllText(CachInfo.JsonPath, JsonConvert.SerializeObject(request.Properties, Formatting.Indented));
+        File.WriteAllText(CacheInfo.HtmlPath, request.Content);
+        File.WriteAllText(CacheInfo.JsonPath, JsonConvert.SerializeObject(request.Info, Formatting.Indented));
     }
 
     /// <summary>
@@ -48,8 +48,8 @@ public class CacheService
     /// <returns></returns>
     public WebResponseResult Read()
     {
-        var properties = JsonConvert.DeserializeObject<WebReponseProps>(File.ReadAllText(CachInfo.JsonPath));
-        if (properties == null)
+        var info = JsonConvert.DeserializeObject<WebReponseInfo>(File.ReadAllText(CacheInfo.JsonPath));
+        if (info == null)
         {
             throw new Exception("Failed to deserialize cache properties from JSON file");
         }
@@ -57,8 +57,8 @@ public class CacheService
         return new WebResponseResult
         {
             IsCached = true,
-            Content = File.ReadAllText(CachInfo.HtmlPath),
-            Properties = properties
+            Content = File.ReadAllText(CacheInfo.HtmlPath),
+            Info = info
         };
     }
 
@@ -68,6 +68,6 @@ public class CacheService
     /// <returns></returns>
     public bool Exists()
     {
-        return File.Exists(CachInfo.HtmlPath) && File.Exists(CachInfo.JsonPath);
+        return File.Exists(CacheInfo.HtmlPath) && File.Exists(CacheInfo.JsonPath);
     }
 }

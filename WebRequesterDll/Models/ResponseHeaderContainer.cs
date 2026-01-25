@@ -79,6 +79,5 @@ namespace WebRequesterDll.Models
                 }
             }
         }
-
     }
 }

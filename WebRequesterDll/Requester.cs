@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Net.Sockets;
 using System.Security.Authentication;
-
 using WebRequesterDll.Models;
 
 namespace WebRequesterDll;
@@ -23,7 +22,6 @@ public static class Requester
         {
             return null;
         }
-
         try
         {
             Directory.CreateDirectory(cacheFolder);
@@ -55,6 +53,15 @@ public static class Requester
             return cacheFileConfig.Read();
         }
 
+        var result = await GetFromWebEach(startUrl);
+        result.Info.Cache = cacheFileConfig?.CacheInfo;
+        cacheFileConfig?.Save(result);
+        return result;
+    }
+
+
+    private static async Task<WebResponseResult> GetFromWebEach(string startUrl)
+    {
         using var client = ClientInit(true);
         var response = await Request(client, startUrl);
         if (response.ResponseMessage == null)
@@ -63,18 +70,20 @@ public static class Requester
             {
                 IsCached = false,
                 Content = "",
-                ResponseStatus = response.ResponseStatus,
-                Properties = new WebReponseProps
+                Info = new WebReponseInfo
                 {
-                    StartUrl = startUrl,
-                    FinalUrl = "",
-                    RedirectChain = [],
+                    Url = new UrlModel
+                    {
+                        Start = startUrl,
+                        Final = "",
+                        RedirectChain = []
+                    },
+                    Status = response.ResponseStatus,
                     // CharsetParsed = new CharsetParser(response),
                     CharSet = "",
                     MediaType = "",
                     ResponseHeaders = new Dictionary<string, string>(),
-                    ContentHeaders = new Dictionary<string, string>(),
-                    CachInfo = cacheFileConfig?.CachInfo
+                    ContentHeaders = new Dictionary<string, string>()
                 }
             };
         }
@@ -87,27 +96,28 @@ public static class Requester
         var contentLength = response.ResponseMessage.Content.Headers.ContentLength;
         Debug.WriteLine($"contentLength = {contentLength}");
 
-        var webResponseResult = new WebResponseResult
+        return new WebResponseResult
         {
             IsCached = false,
-            ResponseStatus = response.ResponseStatus,
-            Properties = new WebReponseProps
+            Info = new WebReponseInfo
             {
-                StartUrl = startUrl,
-                FinalUrl = response.ResponseMessage.RequestMessage?.RequestUri?.ToString() ?? "null",
-                RedirectChain = [],
+                Url = new UrlModel
+                {
+                    Start = startUrl,
+                    Final = "",
+                    RedirectChain = []
+                },
                 // CharsetParsed = new CharsetParser(response),
+                Status = response.ResponseStatus,
                 CharSet = response.ResponseMessage.Content.Headers.ContentType?.CharSet ?? "",
                 MediaType = response.ResponseMessage.Content.Headers.ContentType?.MediaType ?? "",
                 ResponseHeaders = resonseHeaders,
-                ContentHeaders = contentHeaders,
-                CachInfo = cacheFileConfig?.CachInfo
+                ContentHeaders = contentHeaders
             },
             Content = await response.ResponseMessage.Content.ReadAsStringAsync()
         };
-        cacheFileConfig?.Save(webResponseResult);
-        return webResponseResult;
     }
+
 
     private static async Task<HttpResponseMsg> Request(HttpClient client, string url)
     {
