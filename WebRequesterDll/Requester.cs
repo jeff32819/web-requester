@@ -116,9 +116,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = response,
-                Result = new HttpReponseResult
+                Result = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.None
+                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.None
                 }
             };
         }
@@ -128,9 +128,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseResult
+                Result = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.DnsFailure,
+                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.DnsFailure,
                     ErrorMessage = $"DNS failure | {url} | {ex.Message}"
                 }
             };
@@ -140,9 +140,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseResult
+                Result = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.Timeout,
+                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.Timeout,
                     ErrorMessage = $"Timeout | {url} | {ex.Message}"
                 }
             };
@@ -152,9 +152,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseResult
+                Result = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.ConnectionError,
+                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.ConnectionError,
                     ErrorMessage = $"Connection reset, broken pipe, network drop | {url} | {ex.Message}"
                 }
             };
@@ -166,9 +166,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseResult
+                Result = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.SslError,
+                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.SslError,
                     ErrorMessage = $"SSL/TLS error | {url} | {ex.Message}"
                 }
             };
@@ -179,9 +179,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseResult
+                Result = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.HttpError,
+                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.HttpError,
                     HttpStatusCode = code,
                     ErrorMessage = $"{(int)code} {code} | {url}"
                 }
@@ -194,9 +194,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseResult
+                Result = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.HttpError,
+                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.HttpError,
                     ErrorMessage = $"HTTP/network error | {url} | {ex.Message}"
                 }
             };
@@ -206,9 +206,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseResult
+                Result = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.Unexpected,
+                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.Unexpected,
                     ErrorMessage = $"Unexpected error | {url} | {ex.Message}"
                 }
             };

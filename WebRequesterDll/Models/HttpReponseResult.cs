@@ -2,9 +2,8 @@
 
 namespace WebRequesterDll.Models
 {
-    public class HttpReponseResult
+    public class HttpReponseStatus
     {
-
         public string ErrorMessage { get; set; } = "";
         public HttpStatusCode? HttpStatusCode { get; set; }
         public HttpErrorCodeEnum ErrorCode { get; set; } = HttpErrorCodeEnum.None;
