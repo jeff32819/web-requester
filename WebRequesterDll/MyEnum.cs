@@ -4,8 +4,8 @@
     {
         public enum CacheMode
         {
-            ForceRefresh,
-            UseCacheIfExists
+            UseCacheIfExists = 0,
+            ForceRefresh = 1
         }
 
         public enum RequestErrorCodeEnum

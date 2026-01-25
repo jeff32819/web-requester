@@ -10,7 +10,8 @@ const string domainName = "https://jeff32819.com/";
 //const string domainName = "https://www.tesla.com/powerwall";
 //const string domainName = "https://www.creativefabrica.com/";
 
-var response = await Requester.GetFromWeb(domainName, cacheFolder, MyEnum.CacheMode.ForceRefresh);
+
+var response = await Requester.GetFromWeb(domainName, cacheFolder, MyEnum.CacheMode.UseCacheIfExists);
 Console.WriteLine(JsonConvert.SerializeObject(response.Info, Formatting.Indented));
 Console.WriteLine();
 Console.WriteLine($"HTML content length = {response.Content.Length}");

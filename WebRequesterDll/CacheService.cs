@@ -11,13 +11,21 @@ public class CacheService
     /// </summary>
     /// <param name="url"></param>
     /// <param name="cacheFolder"></param>
-    public CacheService(string url, string cacheFolder)
+    /// <param name="cacheMode"></param>
+    public CacheService(string url, string cacheFolder, MyEnum.CacheMode cacheMode)
     {
         if (!Directory.Exists(cacheFolder))
         {
             throw new Exception("Cache folder does not exist");
         }
-
+        try
+        {
+            Directory.CreateDirectory(cacheFolder);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Cannot create folder {cacheFolder}", ex);
+        }
         var uri = new Uri(url);
         var basePath = Path.Combine(cacheFolder, uri.Host);
         Directory.CreateDirectory(basePath);
@@ -29,7 +37,7 @@ public class CacheService
             HtmlPath = Path.Combine(basePath, $"{hash}.html")
         };
     }
-
+    public MyEnum.CacheMode CacheMode { get; set; }
     public CacheInfoModel CacheInfo { get; }
     
     /// <summary>

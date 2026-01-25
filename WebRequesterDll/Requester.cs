@@ -16,46 +16,25 @@ namespace WebRequesterDll;
 /// </remarks>
 public static class Requester
 {
-    private static CacheService? GetCacheIfExists(string startUrl, string cacheFolder, MyEnum.CacheMode cacheMode)
-    {
-        if (string.IsNullOrEmpty(cacheFolder))
-        {
-            return null;
-        }
-        try
-        {
-            Directory.CreateDirectory(cacheFolder);
-            return new CacheService(startUrl, cacheFolder);
-        }
-        catch (Exception ex)
-        {
-            throw new Exception($"Cannot create folder {cacheFolder}", ex);
-        }
-    }
-
     /// <summary>
     ///     Get page from web
     /// </summary>
     /// <param name="startUrl">Start url</param>
-    /// <param name="cacheFolder">Cache folder</param>
-    /// <param name="cacheMode"></param>
+    /// <param name="cache"></param>
     /// <returns></returns>
     public static async Task<WebResponseResult> GetFromWeb(string startUrl, string cacheFolder, MyEnum.CacheMode cacheMode)
     {
+        var result = await GetFromWebEach(startUrl);
         if (!startUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            throw new Exception("Can only parse links that start with HTTPS://");
+            throw new Exception("Can only parse links that start with HTTPS://"); 
         }
-
-        var cacheFileConfig = GetCacheIfExists(startUrl, cacheFolder, cacheMode);
-        if (cacheFileConfig != null && cacheFileConfig.Exists() && cacheMode == MyEnum.CacheMode.UseCacheIfExists)
+        result.Info.Cache = new CacheService(startUrl, cacheFolder, cacheMode);
+        if (result.Info.Cache.Exists() && result.Info.Cache.CacheMode == MyEnum.CacheMode.UseCacheIfExists)
         {
-            return cacheFileConfig.Read();
+            return result.Info.Cache.Read();
         }
-
-        var result = await GetFromWebEach(startUrl);
-        result.Info.Cache = cacheFileConfig?.CacheInfo;
-        cacheFileConfig?.Save(result);
+        result.Info.Cache.Save(result);
         return result;
     }
 
