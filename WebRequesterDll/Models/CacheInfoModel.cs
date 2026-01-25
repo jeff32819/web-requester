@@ -2,6 +2,7 @@
 {
     public class CacheInfoModel
     {
+        
         /// <summary>
         ///     Has for url
         /// </summary>

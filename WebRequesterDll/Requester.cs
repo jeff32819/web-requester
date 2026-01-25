@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Net.Cache;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using WebRequesterDll.Models;
@@ -20,7 +21,8 @@ public static class Requester
     ///     Get page from web
     /// </summary>
     /// <param name="startUrl">Start url</param>
-    /// <param name="cache"></param>
+    /// <param name="cacheFolder"></param>
+    /// <param name="cacheMode"></param>
     /// <returns></returns>
     public static async Task<WebResponseResult> GetFromWeb(string startUrl, string cacheFolder, MyEnum.CacheMode cacheMode)
     {
@@ -29,12 +31,14 @@ public static class Requester
         {
             throw new Exception("Can only parse links that start with HTTPS://"); 
         }
-        result.Info.Cache = new CacheService(startUrl, cacheFolder, cacheMode);
-        if (result.Info.Cache.Exists() && result.Info.Cache.CacheMode == MyEnum.CacheMode.UseCacheIfExists)
+        var cache = new CacheService(startUrl, cacheFolder, cacheMode);
+        if (cache.Exists() && cache.CacheMode == MyEnum.CacheMode.UseCacheIfExists)
         {
-            return result.Info.Cache.Read();
+            return cache.Read();
         }
-        result.Info.Cache.Save(result);
+
+        result.Info.Cache = cache.CacheInfo;
+        cache.Save(result);
         return result;
     }
 
