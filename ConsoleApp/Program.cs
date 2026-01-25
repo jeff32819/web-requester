@@ -1,16 +1,15 @@
 ﻿using Newtonsoft.Json;
 using WebRequesterDll;
 
-const string cacheFolder = "T:\\aaaaaaaaaaaaaaaaaaa";
+const string cacheFolder = @"X:\website-link-validator";
 //const string domainName = "https://jeff32819.com/";
-const string domainName = "https://jeffmathews.com/";
+//const string domainName = "https://jeffmathews.com/";
 //const string domainName = "https://www.jumpstartfitorlando.com/";
 //const string domainName = "https://seeworthyconsulting.com/";
-//const string domainName = "";
 
+const string domainName = "https://homecontrolfreak.com/";
 
-
-var response = await Requester.GetFromWeb(domainName, cacheFolder);
+var response = await Requester.GetFromWeb(domainName, cacheFolder, MyEnum.CacheMode.ForceRefresh);
 Console.WriteLine(JsonConvert.SerializeObject(response.Properties, Formatting.Indented));
 Console.WriteLine();
 Console.WriteLine($"HTML content length = {response.Content.Length}");

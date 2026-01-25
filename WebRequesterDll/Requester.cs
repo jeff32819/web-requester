@@ -17,24 +17,39 @@ namespace WebRequesterDll;
 /// </remarks>
 public static class Requester
 {
+
+    private static CacheService? GetCacheIfExists(string startUrl, string cacheFolder, MyEnum.CacheMode cacheMode)
+    {
+        if (string.IsNullOrEmpty(cacheFolder))
+        {
+            return null;
+        }
+        try
+        {
+            Directory.CreateDirectory(cacheFolder);
+            return new CacheService(startUrl, cacheFolder);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Cannot create folder {cacheFolder}", ex);
+        }
+    }
+    
     /// <summary>
     ///     Get page from web
     /// </summary>
-    /// <param name="startUrl"></param>
-    /// <param name="cacheFolder"></param>
+    /// <param name="startUrl">Start url</param>
+    /// <param name="cacheFolder">Cache folder</param>
+    /// <param name="cacheMode"></param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(string startUrl, string cacheFolder)
+    public static async Task<WebResponseResult> GetFromWeb(string startUrl, string cacheFolder, MyEnum.CacheMode cacheMode)
     {
-        CacheService? cacheFileConfig = null;
-        if (!string.IsNullOrEmpty(cacheFolder) && Directory.Exists(cacheFolder))
-        {
-            cacheFileConfig = new CacheService(startUrl, cacheFolder);
-        }
         if (!startUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
             throw new Exception("Can only parse links that start with HTTPS://");
         }
-        if (cacheFileConfig != null && cacheFileConfig.Exists())
+        var cacheFileConfig = GetCacheIfExists(startUrl, cacheFolder, cacheMode);
+        if (cacheFileConfig != null && cacheFileConfig.Exists() && cacheMode == MyEnum.CacheMode.UseCacheIfExists)
         {
             return cacheFileConfig.Read();
         }
