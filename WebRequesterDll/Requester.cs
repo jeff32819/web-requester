@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System.Diagnostics;
+using System.Net.Sockets;
 using System.Security.Authentication;
 
 using WebRequesterDll.Models;
@@ -62,13 +63,12 @@ public static class Requester
             {
                 IsCached = false,
                 Content = "",
+                ResponseStatus = response.ResponseStatus,
                 Properties = new WebReponseProps
                 {
                     StartUrl = startUrl,
                     FinalUrl = "",
                     RedirectChain = [],
-                    ContentLength = -1,
-                    StatusCodeEnum = response.Result.HttpStatusCode,
                     // CharsetParsed = new CharsetParser(response),
                     CharSet = "",
                     MediaType = "",
@@ -84,24 +84,26 @@ public static class Requester
         var contentHeaders = contentHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
         var resonseHeaders = resonseHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
 
+        var contentLength = response.ResponseMessage.Content.Headers.ContentLength;
+        Debug.WriteLine($"contentLength = {contentLength}");
+
         var webResponseResult = new WebResponseResult
         {
             IsCached = false,
-            Content = await response.ResponseMessage.Content.ReadAsStringAsync(),
+            ResponseStatus = response.ResponseStatus,
             Properties = new WebReponseProps
             {
                 StartUrl = startUrl,
                 FinalUrl = response.ResponseMessage.RequestMessage?.RequestUri?.ToString() ?? "null",
                 RedirectChain = [],
-                ContentLength = response.ResponseMessage.Content.Headers.ContentLength ?? -1,
-                StatusCodeEnum = response.ResponseMessage.StatusCode,
                 // CharsetParsed = new CharsetParser(response),
                 CharSet = response.ResponseMessage.Content.Headers.ContentType?.CharSet ?? "",
                 MediaType = response.ResponseMessage.Content.Headers.ContentType?.MediaType ?? "",
                 ResponseHeaders = resonseHeaders,
                 ContentHeaders = contentHeaders,
                 CachInfo = cacheFileConfig?.CachInfo
-            }
+            },
+            Content = await response.ResponseMessage.Content.ReadAsStringAsync()
         };
         cacheFileConfig?.Save(webResponseResult);
         return webResponseResult;
@@ -116,9 +118,10 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = response,
-                Result = new HttpReponseStatus
+                ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.None
+                    StatusCode = (int)response.StatusCode,
+                    ErrorCode = MyEnum.RequestErrorCodeEnum.None
                 }
             };
         }
@@ -128,9 +131,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseStatus
+                ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.DnsFailure,
+                    ErrorCode = MyEnum.RequestErrorCodeEnum.DnsFailure,
                     ErrorMessage = $"DNS failure | {url} | {ex.Message}"
                 }
             };
@@ -140,9 +143,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseStatus
+                ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.Timeout,
+                    ErrorCode = MyEnum.RequestErrorCodeEnum.Timeout,
                     ErrorMessage = $"Timeout | {url} | {ex.Message}"
                 }
             };
@@ -152,9 +155,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseStatus
+                ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.ConnectionError,
+                    ErrorCode = MyEnum.RequestErrorCodeEnum.ConnectionError,
                     ErrorMessage = $"Connection reset, broken pipe, network drop | {url} | {ex.Message}"
                 }
             };
@@ -166,9 +169,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseStatus
+                ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.SslError,
+                    ErrorCode = MyEnum.RequestErrorCodeEnum.SslError,
                     ErrorMessage = $"SSL/TLS error | {url} | {ex.Message}"
                 }
             };
@@ -179,10 +182,10 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseStatus
+                ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.HttpError,
-                    HttpStatusCode = code,
+                    ErrorCode = MyEnum.RequestErrorCodeEnum.HttpError,
+                    StatusCode = (int)code,
                     ErrorMessage = $"{(int)code} {code} | {url}"
                 }
             };
@@ -194,9 +197,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseStatus
+                ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.HttpError,
+                    ErrorCode = MyEnum.RequestErrorCodeEnum.HttpError,
                     ErrorMessage = $"HTTP/network error | {url} | {ex.Message}"
                 }
             };
@@ -206,9 +209,9 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = null,
-                Result = new HttpReponseStatus
+                ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = HttpReponseStatus.HttpErrorCodeEnum.Unexpected,
+                    ErrorCode = MyEnum.RequestErrorCodeEnum.Unexpected,
                     ErrorMessage = $"Unexpected error | {url} | {ex.Message}"
                 }
             };

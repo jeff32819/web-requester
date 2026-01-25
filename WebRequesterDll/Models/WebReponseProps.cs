@@ -1,8 +1,4 @@
-﻿using System.Net;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-
-namespace WebRequesterDll.Models
+﻿namespace WebRequesterDll.Models
 {
     public class WebReponseProps : IWebReponseProps
     {
@@ -15,7 +11,6 @@ namespace WebRequesterDll.Models
         /// Final url after redirects (if any)
         /// </summary>
         public string FinalUrl { get; set; } = string.Empty;
-        public Uri? FinalUri => string.IsNullOrEmpty(FinalUrl) ? null : new Uri(FinalUrl);
         /// <summary>
         /// Will compare start url from final url and indicate if there was a redirect. This will work with either GetFromWeb or GetFromWebWithRedirects
         /// </summary>
@@ -25,10 +20,7 @@ namespace WebRequesterDll.Models
         /// </summary>
         public List<string> RedirectChain { get; set; } = new();
 
-        public long ContentLength { get; set; }
-        
-        [JsonConverter(typeof(StringEnumConverter))]
-        public HttpStatusCode? StatusCodeEnum { get; set; }
+        // public long ContentLength { get; set; } // this value is not reliable and not really needed.
         public string CharSet { get; set; } = string.Empty;
         public string MediaType { get; set; } = string.Empty;
         public Dictionary<string, string> ResponseHeaders { get; set; } = new();

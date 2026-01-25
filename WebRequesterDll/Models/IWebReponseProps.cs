@@ -24,11 +24,6 @@ namespace WebRequesterDll.Models
         /// If called by GetFromWebWithRedirects method, contains the full redirect chain.
         /// </summary>
         List<string> RedirectChain { get; set; }
-
-
-        long ContentLength { get; }
-        HttpStatusCode? StatusCodeEnum { get; set; }
-
         /// <summary>
         /// Maybe use later, there are some sites that have a invalid charset that need to be fixed
         /// </summary>
