@@ -56,7 +56,7 @@ public class CacheService
     /// <returns></returns>
     public WebResponseResult Read()
     {
-        var info = JsonConvert.DeserializeObject<WebReponseInfo>(File.ReadAllText(CacheInfo.JsonPath));
+        var info = JsonConvert.DeserializeObject<WebResponseInfo>(File.ReadAllText(CacheInfo.JsonPath));
         if (info == null)
         {
             throw new Exception("Failed to deserialize cache properties from JSON file");

@@ -10,5 +10,5 @@ public interface IWebResponseResult
     /// <summary>
     /// Other properties separated so they are separated from the content for saving.
     /// </summary>
-    WebReponseInfo Info { get; set; }
+    WebResponseInfo Info { get; set; }
 }

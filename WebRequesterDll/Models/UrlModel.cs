@@ -5,7 +5,7 @@
         /// <summary>
         /// Starting url
         /// </summary>
-        public required string Start { get; set; }
+        public string Start { get; set; }
 
         /// <summary>
         /// Final url after redirects (if any)

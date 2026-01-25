@@ -53,7 +53,7 @@ public static class Requester
             {
                 IsCached = false,
                 Content = "",
-                Info = new WebReponseInfo
+                Info = new WebResponseInfo
                 {
                     Url = new UrlModel
                     {
@@ -82,12 +82,12 @@ public static class Requester
         return new WebResponseResult
         {
             IsCached = false,
-            Info = new WebReponseInfo
+            Info = new WebResponseInfo
             {
                 Url = new UrlModel
                 {
                     Start = startUrl,
-                    Final = "",
+                    Final = response.ResponseMessage.RequestMessage!.RequestUri!.ToString(),
                     RedirectChain = []
                 },
                 // CharsetParsed = new CharsetParser(response),
