@@ -1,4 +1,8 @@
-﻿namespace WebRequesterDll.Models
+﻿using System.Net;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+
+namespace WebRequesterDll.Models
 {
     public class WebReponseProps : IWebReponseProps
     {
@@ -22,7 +26,9 @@
         public List<string> RedirectChain { get; set; } = new();
 
         public long ContentLength { get; set; }
-        public int StatusCode { get; set; }
+        
+        [JsonConverter(typeof(StringEnumConverter))]
+        public HttpStatusCode? StatusCodeEnum { get; set; }
         public string CharSet { get; set; } = string.Empty;
         public string MediaType { get; set; } = string.Empty;
         public Dictionary<string, string> ResponseHeaders { get; set; } = new();

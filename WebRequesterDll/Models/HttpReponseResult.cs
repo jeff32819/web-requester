@@ -4,7 +4,7 @@ namespace WebRequesterDll.Models
 {
     public class HttpReponseResult
     {
-        public HttpResponseMessage? Response { get; set; }
+
         public string ErrorMessage { get; set; } = "";
         public HttpStatusCode? HttpStatusCode { get; set; }
         public HttpErrorCodeEnum ErrorCode { get; set; } = HttpErrorCodeEnum.None;
@@ -16,7 +16,8 @@ namespace WebRequesterDll.Models
             ConnectionError,
             SslError,
             HttpError,
-            Unexpected
+            Unexpected,
+            Unknown
         }
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace WebRequesterDll.Models
+﻿using System.Net;
+
+namespace WebRequesterDll.Models
 {
     public interface IWebReponseProps
     {
@@ -25,7 +27,7 @@
 
 
         long ContentLength { get; }
-        int StatusCode { get; }
+        HttpStatusCode? StatusCodeEnum { get; set; }
 
         /// <summary>
         /// Maybe use later, there are some sites that have a invalid charset that need to be fixed

@@ -1,5 +1,4 @@
-﻿using System.Net;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using System.Security.Authentication;
 
 using WebRequesterDll.Models;
@@ -17,13 +16,13 @@ namespace WebRequesterDll;
 /// </remarks>
 public static class Requester
 {
-
     private static CacheService? GetCacheIfExists(string startUrl, string cacheFolder, MyEnum.CacheMode cacheMode)
     {
         if (string.IsNullOrEmpty(cacheFolder))
         {
             return null;
         }
+
         try
         {
             Directory.CreateDirectory(cacheFolder);
@@ -34,7 +33,7 @@ public static class Requester
             throw new Exception($"Cannot create folder {cacheFolder}", ex);
         }
     }
-    
+
     /// <summary>
     ///     Get page from web
     /// </summary>
@@ -48,37 +47,57 @@ public static class Requester
         {
             throw new Exception("Can only parse links that start with HTTPS://");
         }
+
         var cacheFileConfig = GetCacheIfExists(startUrl, cacheFolder, cacheMode);
         if (cacheFileConfig != null && cacheFileConfig.Exists() && cacheMode == MyEnum.CacheMode.UseCacheIfExists)
         {
             return cacheFileConfig.Read();
         }
+
         using var client = ClientInit(true);
         var response = await Request(client, startUrl);
-        if (response.Response == null)
+        if (response.ResponseMessage == null)
         {
-            throw new Exception(response.ErrorMessage);
+            return new WebResponseResult
+            {
+                IsCached = false,
+                Content = "",
+                Properties = new WebReponseProps
+                {
+                    StartUrl = startUrl,
+                    FinalUrl = "",
+                    RedirectChain = [],
+                    ContentLength = -1,
+                    StatusCodeEnum = response.Result.HttpStatusCode,
+                    // CharsetParsed = new CharsetParser(response),
+                    CharSet = "",
+                    MediaType = "",
+                    ResponseHeaders = new Dictionary<string, string>(),
+                    ContentHeaders = new Dictionary<string, string>(),
+                    CachInfo = cacheFileConfig?.CachInfo
+                }
+            };
         }
 
-        var resonseHeadersRaw = response.Response.Headers;
-        var contentHeadersRaw = response.Response.Content.Headers;
+        var resonseHeadersRaw = response.ResponseMessage.Headers;
+        var contentHeadersRaw = response.ResponseMessage.Content.Headers;
         var contentHeaders = contentHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
         var resonseHeaders = resonseHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
 
         var webResponseResult = new WebResponseResult
         {
             IsCached = false,
-            Content = await response.Response.Content.ReadAsStringAsync(),
+            Content = await response.ResponseMessage.Content.ReadAsStringAsync(),
             Properties = new WebReponseProps
             {
                 StartUrl = startUrl,
-                FinalUrl = response.Response.RequestMessage?.RequestUri?.ToString() ?? "null",
+                FinalUrl = response.ResponseMessage.RequestMessage?.RequestUri?.ToString() ?? "null",
                 RedirectChain = [],
-                ContentLength = response.Response.Content.Headers.ContentLength ?? -1,
-                StatusCode = (int)response.Response.StatusCode,
+                ContentLength = response.ResponseMessage.Content.Headers.ContentLength ?? -1,
+                StatusCodeEnum = response.ResponseMessage.StatusCode,
                 // CharsetParsed = new CharsetParser(response),
-                CharSet = response.Response.Content.Headers.ContentType?.CharSet ?? "",
-                MediaType = response.Response.Content.Headers.ContentType?.MediaType ?? "",
+                CharSet = response.ResponseMessage.Content.Headers.ContentType?.CharSet ?? "",
+                MediaType = response.ResponseMessage.Content.Headers.ContentType?.MediaType ?? "",
                 ResponseHeaders = resonseHeaders,
                 ContentHeaders = contentHeaders,
                 CachInfo = cacheFileConfig?.CachInfo
@@ -88,80 +107,110 @@ public static class Requester
         return webResponseResult;
     }
 
-    public static async Task<HttpReponseResult> Request(HttpClient client, string url)
+    private static async Task<HttpResponseMsg> Request(HttpClient client, string url)
     {
         try
         {
             var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
-
-            return new HttpReponseResult
+            return new HttpResponseMsg
             {
-                Response = response,
-                ErrorCode = HttpReponseResult.HttpErrorCodeEnum.None
+                ResponseMessage = response,
+                Result = new HttpReponseResult
+                {
+                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.None
+                }
             };
         }
         catch (HttpRequestException ex) when
             (ex.InnerException is SocketException { SocketErrorCode: SocketError.HostNotFound })
         {
-            return new HttpReponseResult
+            return new HttpResponseMsg
             {
-                ErrorCode = HttpReponseResult.HttpErrorCodeEnum.DnsFailure,
-                ErrorMessage = $"DNS failure | {url} | {ex.Message}"
+                ResponseMessage = null,
+                Result = new HttpReponseResult
+                {
+                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.DnsFailure,
+                    ErrorMessage = $"DNS failure | {url} | {ex.Message}"
+                }
             };
         }
         catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
         {
-            return new HttpReponseResult
+            return new HttpResponseMsg
             {
-                ErrorCode = HttpReponseResult.HttpErrorCodeEnum.Timeout,
-                ErrorMessage = $"Timeout | {url} | {ex.Message}"
+                ResponseMessage = null,
+                Result = new HttpReponseResult
+                {
+                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.Timeout,
+                    ErrorMessage = $"Timeout | {url} | {ex.Message}"
+                }
             };
         }
         catch (HttpRequestException ex) when (ex.InnerException is IOException)
         {
-            return new HttpReponseResult
+            return new HttpResponseMsg
             {
-                ErrorCode = HttpReponseResult.HttpErrorCodeEnum.ConnectionError,
-                ErrorMessage = $"Connection reset, broken pipe, network drop | {url} | {ex.Message}"
+                ResponseMessage = null,
+                Result = new HttpReponseResult
+                {
+                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.ConnectionError,
+                    ErrorMessage = $"Connection reset, broken pipe, network drop | {url} | {ex.Message}"
+                }
             };
         }
         catch (HttpRequestException ex) when
             (ex.InnerException is AuthenticationException ||
              ex.Message.Contains("SSL", StringComparison.OrdinalIgnoreCase))
         {
-            return new HttpReponseResult
+            return new HttpResponseMsg
             {
-                ErrorCode = HttpReponseResult.HttpErrorCodeEnum.SslError,
-                ErrorMessage = $"SSL/TLS error | {url} | {ex.Message}"
+                ResponseMessage = null,
+                Result = new HttpReponseResult
+                {
+                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.SslError,
+                    ErrorMessage = $"SSL/TLS error | {url} | {ex.Message}"
+                }
             };
         }
         // ⭐ Detect 404, 500, 301, 403, etc.
-        catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode code)
+        catch (HttpRequestException ex) when (ex.StatusCode is { } code)
         {
-            return new HttpReponseResult
+            return new HttpResponseMsg
             {
-                ErrorCode = HttpReponseResult.HttpErrorCodeEnum.HttpError,
-                HttpStatusCode = code,
-                ErrorMessage = $"{(int)code} {code} | {url}"
+                ResponseMessage = null,
+                Result = new HttpReponseResult
+                {
+                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.HttpError,
+                    HttpStatusCode = code,
+                    ErrorMessage = $"{(int)code} {code} | {url}"
+                }
             };
         }
 
         // Fallback for HttpRequestException with NO status code (network errors)
         catch (HttpRequestException ex)
         {
-            return new HttpReponseResult
+            return new HttpResponseMsg
             {
-                ErrorCode = HttpReponseResult.HttpErrorCodeEnum.HttpError,
-                ErrorMessage = $"HTTP/network error | {url} | {ex.Message}"
+                ResponseMessage = null,
+                Result = new HttpReponseResult
+                {
+                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.HttpError,
+                    ErrorMessage = $"HTTP/network error | {url} | {ex.Message}"
+                }
             };
         }
         catch (Exception ex)
         {
-            return new HttpReponseResult
+            return new HttpResponseMsg
             {
-                ErrorCode = HttpReponseResult.HttpErrorCodeEnum.Unexpected,
-                ErrorMessage = $"Unexpected error | {url} | {ex.Message}"
+                ResponseMessage = null,
+                Result = new HttpReponseResult
+                {
+                    ErrorCode = HttpReponseResult.HttpErrorCodeEnum.Unexpected,
+                    ErrorMessage = $"Unexpected error | {url} | {ex.Message}"
+                }
             };
         }
     }
