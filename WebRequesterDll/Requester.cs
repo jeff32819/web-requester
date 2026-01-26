@@ -114,7 +114,7 @@ public static class Requester
                 ResponseStatus = new HttpReponseStatus
                 {
                     StatusCode = (int)response.StatusCode,
-                    ErrorCode = MyEnum.RequestErrorCodeEnum.None
+                    ErrorCode = ""
                 }
             };
         }
@@ -126,8 +126,8 @@ public static class Requester
                 ResponseMessage = null,
                 ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = MyEnum.RequestErrorCodeEnum.DnsFailure,
-                    ErrorMessage = $"DNS failure | {url} | {ex.Message}"
+                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.DnsFailure),
+                    ErrorMessage = ex.Message
                 }
             };
         }
@@ -138,8 +138,8 @@ public static class Requester
                 ResponseMessage = null,
                 ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = MyEnum.RequestErrorCodeEnum.Timeout,
-                    ErrorMessage = $"Timeout | {url} | {ex.Message}"
+                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.Timeout),
+                    ErrorMessage = ex.Message
                 }
             };
         }
@@ -150,8 +150,8 @@ public static class Requester
                 ResponseMessage = null,
                 ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = MyEnum.RequestErrorCodeEnum.ConnectionError,
-                    ErrorMessage = $"Connection reset, broken pipe, network drop | {url} | {ex.Message}"
+                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.ConnectionError),
+                    ErrorMessage = ex.Message
                 }
             };
         }
@@ -164,8 +164,8 @@ public static class Requester
                 ResponseMessage = null,
                 ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = MyEnum.RequestErrorCodeEnum.SslError,
-                    ErrorMessage = $"SSL/TLS error | {url} | {ex.Message}"
+                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.SslError),
+                    ErrorMessage = ex.Message
                 }
             };
         }
@@ -177,9 +177,9 @@ public static class Requester
                 ResponseMessage = null,
                 ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = MyEnum.RequestErrorCodeEnum.HttpError,
+                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.HttpError),
                     StatusCode = (int)code,
-                    ErrorMessage = $"{(int)code} {code} | {url}"
+                    ErrorMessage = ex.Message
                 }
             };
         }
@@ -192,8 +192,8 @@ public static class Requester
                 ResponseMessage = null,
                 ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = MyEnum.RequestErrorCodeEnum.HttpError,
-                    ErrorMessage = $"HTTP/network error | {url} | {ex.Message}"
+                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.HttpError),
+                    ErrorMessage = ex.Message
                 }
             };
         }
@@ -204,8 +204,8 @@ public static class Requester
                 ResponseMessage = null,
                 ResponseStatus = new HttpReponseStatus
                 {
-                    ErrorCode = MyEnum.RequestErrorCodeEnum.Unexpected,
-                    ErrorMessage = $"Unexpected error | {url} | {ex.Message}"
+                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.Unexpected),
+                    ErrorMessage = ex.Message
                 }
             };
         }
