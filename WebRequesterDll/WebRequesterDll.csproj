@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Jeff32819DLL.MiscCore20" Version="1.0.127" />
+    <PackageReference Include="JLog" Version="1.0.26" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 

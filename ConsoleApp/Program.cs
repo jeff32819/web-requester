@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Jeff32819DLL;
+using Newtonsoft.Json;
 using WebRequesterDll;
 
 const string cacheFolder = @"X:\website-link-validator";
@@ -11,10 +12,19 @@ const string domainName = "https://jeff32819.com/";
 //const string domainName = "https://www.creativefabrica.com/";
 
 
-var response = await Requester.GetFromWeb(domainName, cacheFolder, MyEnum.CacheMode.UseCacheIfExists);
-Console.WriteLine(JsonConvert.SerializeObject(response.Info, Formatting.Indented));
+using var log = new JLog.FileLogger("t:\\web-requester.txt");
+try
+{
+    var response = await Requester.GetFromWeb(domainName, cacheFolder, MyEnum.CacheMode.UseCacheIfExists, log);
+    Console.WriteLine(JsonConvert.SerializeObject(response.Info, Formatting.Indented));
+    Console.WriteLine();
+    Console.WriteLine($"HTML content length = {response.Content.Length}");
+}
+catch (Exception ex)
+{
+    log.Write(ex.Message);
+}
+
 Console.WriteLine();
-Console.WriteLine($"HTML content length = {response.Content.Length}");
-Console.WriteLine();
-Console.WriteLine("press any key to exit");
+Console.WriteLine("------------------- press any key to exit");
 Console.ReadKey();

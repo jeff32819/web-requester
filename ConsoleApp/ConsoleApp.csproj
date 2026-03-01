@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="JLog" Version="1.0.26" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\WebRequesterDll\WebRequesterDll.csproj" />
   </ItemGroup>
 

@@ -2,6 +2,7 @@
 using System.Net.Cache;
 using System.Net.Sockets;
 using System.Security.Authentication;
+using Jeff32819DLL;
 using WebRequesterDll.Models;
 
 namespace WebRequesterDll;
@@ -23,27 +24,37 @@ public static class Requester
     /// <param name="startUrl">Start url</param>
     /// <param name="cacheFolder"></param>
     /// <param name="cacheMode"></param>
+    /// <param name="log"></param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(string startUrl, string cacheFolder, MyEnum.CacheMode cacheMode)
+    public static async Task<WebResponseResult> GetFromWeb(string startUrl, string cacheFolder, MyEnum.CacheMode cacheMode, JLog.FileLogger log)
     {
-        var result = await GetFromWebEach(startUrl);
+
+        log.Write("WebRequesterDll.Requester.GetFromWeb()");
+        log.Write($"startUrl = {startUrl}");
         if (!startUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            throw new Exception("Can only parse links that start with HTTPS://"); 
+            throw new Exception("Can only parse links that start with HTTPS://");
         }
         var cache = new CacheService(startUrl, cacheFolder, cacheMode);
+
+        log.Write($"cacheFolder = {cacheFolder}");
+        log.Write($"cacheMode = {cacheMode}");
+        log.Write($"cache.Exists() = {cache.Exists()}");
+
         if (cache.Exists() && cache.CacheMode == MyEnum.CacheMode.UseCacheIfExists)
         {
+            log.Write("Cache exists, reading from cache and returning cached result");
             return cache.Read();
         }
-
+        var result = await GetFromWebEach(startUrl, log);
         result.Info.Cache = cache.CacheInfo;
         cache.Save(result);
+        log.Write($"Saved to cache: {cache.CacheInfo.JsonPath} and {cache.CacheInfo.HtmlPath}");
         return result;
     }
 
 
-    private static async Task<WebResponseResult> GetFromWebEach(string startUrl)
+    private static async Task<WebResponseResult> GetFromWebEach(string startUrl, JLog.FileLogger log)
     {
         using var client = ClientInit(true);
         var response = await Request(client, startUrl);
@@ -75,11 +86,10 @@ public static class Requester
         var contentHeadersRaw = response.ResponseMessage.Content.Headers;
         var contentHeaders = contentHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
         var resonseHeaders = resonseHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
-
         var contentLength = response.ResponseMessage.Content.Headers.ContentLength;
-        Debug.WriteLine($"contentLength = {contentLength}");
+        log.Write($"ContentLength = {contentLength}");
 
-        return new WebResponseResult
+        var tmp = new WebResponseResult
         {
             IsCached = false,
             Info = new WebResponseInfo
@@ -99,6 +109,10 @@ public static class Requester
             },
             Content = await response.ResponseMessage.Content.ReadAsStringAsync()
         };
+        log.Write($"FinalUrl = {tmp.Info.Url.Final}");
+        log.Write($"Status = {tmp.Info.Status}");
+        log.Write($"CharSet = {tmp.Info.CharSet}");
+        return tmp;
     }
 
 

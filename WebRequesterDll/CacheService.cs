@@ -18,6 +18,7 @@ public class CacheService
         {
             throw new Exception("Cache folder does not exist");
         }
+
         try
         {
             Directory.CreateDirectory(cacheFolder);
@@ -26,6 +27,7 @@ public class CacheService
         {
             throw new Exception($"Cannot create folder {cacheFolder}", ex);
         }
+
         var uri = new Uri(url);
         var basePath = Path.Combine(cacheFolder, uri.Host);
         Directory.CreateDirectory(basePath);
@@ -37,9 +39,10 @@ public class CacheService
             HtmlPath = Path.Combine(basePath, $"{hash}.html")
         };
     }
+
     public MyEnum.CacheMode CacheMode { get; set; }
     public CacheInfoModel CacheInfo { get; }
-    
+
     /// <summary>
     ///     Save json object to file
     /// </summary>
