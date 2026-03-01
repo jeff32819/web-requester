@@ -11,8 +11,7 @@ public class CacheService
     /// </summary>
     /// <param name="url"></param>
     /// <param name="cacheFolder"></param>
-    /// <param name="cacheMode"></param>
-    public CacheService(string url, string cacheFolder, MyEnum.CacheMode cacheMode)
+    public CacheService(string url, string cacheFolder)
     {
         if (!Directory.Exists(cacheFolder))
         {
@@ -40,7 +39,6 @@ public class CacheService
         };
     }
 
-    public MyEnum.CacheMode CacheMode { get; set; }
     public CacheInfoModel CacheInfo { get; }
 
     /// <summary>

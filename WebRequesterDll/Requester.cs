@@ -1,8 +1,8 @@
-﻿using System.Diagnostics;
-using System.Net.Cache;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using System.Security.Authentication;
+
 using Jeff32819DLL;
+
 using WebRequesterDll.Models;
 
 namespace WebRequesterDll;
@@ -19,6 +19,11 @@ namespace WebRequesterDll;
 public static class Requester
 {
     /// <summary>
+    /// Timeout for HTTP requests in seconds. Default is 30 seconds. Can be configured before calling GetFromWeb or GetFromWebWithRedirects.
+    /// </summary>
+    public static int Timeout { get; set; } = 30;
+    public static string UserAgent { get; set; } = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/74.0.3729.1235";
+    /// <summary>
     ///     Get page from web
     /// </summary>
     /// <param name="startUrl">Start url</param>
@@ -30,18 +35,22 @@ public static class Requester
     {
 
         log.Write("WebRequesterDll.Requester.GetFromWeb()");
+        log.Write($"UserAgent = {UserAgent}");
+        log.Write($"Timeout = {Timeout} seconds");
         log.Write($"startUrl = {startUrl}");
+        log.Write($"cacheFolder = {cacheFolder}");
+        log.Write($"cacheMode = {cacheMode}");
+
         if (!startUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
             throw new Exception("Can only parse links that start with HTTPS://");
         }
-        var cache = new CacheService(startUrl, cacheFolder, cacheMode);
+        var cache = new CacheService(startUrl, cacheFolder);
+        log.Write(cache);
 
-        log.Write($"cacheFolder = {cacheFolder}");
-        log.Write($"cacheMode = {cacheMode}");
         log.Write($"cache.Exists() = {cache.Exists()}");
 
-        if (cache.Exists() && cache.CacheMode == MyEnum.CacheMode.UseCacheIfExists)
+        if (cache.Exists() && cacheMode == MyEnum.CacheMode.UseCacheIfExists)
         {
             log.Write("Cache exists, reading from cache and returning cached result");
             return cache.Read();
@@ -49,7 +58,8 @@ public static class Requester
         var result = await GetFromWebEach(startUrl, log);
         result.Info.Cache = cache.CacheInfo;
         cache.Save(result);
-        log.Write($"Saved to cache: {cache.CacheInfo.JsonPath} and {cache.CacheInfo.HtmlPath}");
+        log.Write($"Saved to cache: {cache.CacheInfo.JsonPath}");
+        log.Write($"Saved to cache: {cache.CacheInfo.HtmlPath}");
         return result;
     }
 
@@ -60,6 +70,8 @@ public static class Requester
         var response = await Request(client, startUrl);
         if (response.ResponseMessage == null)
         {
+            log.Write($"ErrorMessage = {response.ResponseStatus.ErrorMessage}");
+            log.Write($"ErrorCode = {response.ResponseStatus.ErrorCode}");
             return new WebResponseResult
             {
                 IsCached = false,
@@ -109,6 +121,7 @@ public static class Requester
             },
             Content = await response.ResponseMessage.Content.ReadAsStringAsync()
         };
+        log.Write($"StartUrl = {startUrl}");
         log.Write($"FinalUrl = {tmp.Info.Url.Final}");
         log.Write($"Status = {tmp.Info.Status}");
         log.Write($"CharSet = {tmp.Info.CharSet}");
@@ -237,8 +250,8 @@ public static class Requester
             AllowAutoRedirect = allowAutoRedirect
         };
         var client = new HttpClient(handler);
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/74.0.3729.1235");
-        client.Timeout = TimeSpan.FromSeconds(30); // Set timeout to 30 seconds
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+        client.Timeout = TimeSpan.FromSeconds(Timeout); // Set timeout to configured value
         return client;
     }
 

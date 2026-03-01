@@ -12,7 +12,7 @@ const string domainName = "https://jeff32819.com/";
 //const string domainName = "https://www.creativefabrica.com/";
 
 
-using var log = new JLog.FileLogger("t:\\web-requester.txt");
+using var log = new JLog.FileLogger("t:\\web-requester-logs\\log.txt");
 try
 {
     var response = await Requester.GetFromWeb(domainName, cacheFolder, MyEnum.CacheMode.UseCacheIfExists, log);
