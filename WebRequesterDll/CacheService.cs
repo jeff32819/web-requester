@@ -1,5 +1,5 @@
-﻿using Newtonsoft.Json;
-
+﻿using Jeff32819DLL;
+using Newtonsoft.Json;
 using WebRequesterDll.Models;
 
 namespace WebRequesterDll;
@@ -10,7 +10,7 @@ public class CacheService
     ///     Cache file config constructor
     /// </summary>
     /// <param name="requestorConfig"></param>
-    public CacheService(RequesterConfig requestorConfig)
+    public CacheService(RequesterConfig requestorConfig, JLog.FileLogger log)
     {
         try
         {
@@ -20,19 +20,26 @@ public class CacheService
         {
             throw new Exception($"Cannot create folder {requestorConfig.Cache.Folder}", ex);
         }
-        RequestorConfig = requestorConfig;
+
+        RequesterConfig = requestorConfig;
+        Log = log;
     }
 
-    public RequesterConfig RequestorConfig { get; }
+    public JLog.FileLogger Log { get; }
+    public RequesterConfig RequesterConfig { get; }
 
     /// <summary>
     ///     Save json object to file
     /// </summary>
-    /// <param name="request"></param>0
+    /// <param name="request"></param>
+    /// 0
     public void Save(WebResponseResult request)
     {
-        File.WriteAllText(RequestorConfig.Cache.Html, request.Content);
-        File.WriteAllText(RequestorConfig.Cache.Json, JsonConvert.SerializeObject(request.Info, Formatting.Indented));
+        Log.Write($"Saving HTML to: {RequesterConfig.Cache.Html}");
+        Log.Write($"Saving JSON to: {RequesterConfig.Cache.Json}");
+
+        File.WriteAllText(RequesterConfig.Cache.Html, request.Content);
+        File.WriteAllText(RequesterConfig.Cache.Json, JsonConvert.SerializeObject(request.Info, Formatting.Indented));
     }
 
     /// <summary>
@@ -41,18 +48,20 @@ public class CacheService
     /// <returns></returns>
     public WebResponseResult Read()
     {
-        var info = JsonConvert.DeserializeObject<WebResponseInfo>(File.ReadAllText(RequestorConfig.Cache.Json));
-        if (info == null)
+        Log.Write($"Parsing JSON from: {RequesterConfig.Cache.Json}");
+        var info = JsonConvert.DeserializeObject<WebResponseInfo>(File.ReadAllText(RequesterConfig.Cache.Json));
+        Log.Write($"Successfully parsed JSON from: {RequesterConfig.Cache.Json}");
+        if (info != null)
         {
-            throw new Exception("Failed to deserialize cache properties from JSON file");
+            return new WebResponseResult
+            {
+                IsCached = true,
+                Content = File.ReadAllText(RequesterConfig.Cache.Html),
+                Info = info
+            };
         }
-
-        return new WebResponseResult
-        {
-            IsCached = true,
-            Content = File.ReadAllText(RequestorConfig.Cache.Html),
-            Info = info
-        };
+        Log.Write($"Info - parsed json is null");
+        throw new Exception("Failed to deserialize cache properties from JSON file");
     }
 
     /// <summary>
@@ -61,6 +70,6 @@ public class CacheService
     /// <returns></returns>
     public bool Exists()
     {
-        return File.Exists(RequestorConfig.Cache.Html) && File.Exists(RequestorConfig.Cache.Json);
+        return File.Exists(RequesterConfig.Cache.Html) && File.Exists(RequesterConfig.Cache.Json);
     }
 }

@@ -47,7 +47,7 @@ public static class Requester
         //    throw new Exception("Can only parse links that start with HTTPS://");
         //}
 
-        var cache = new CacheService(requestorConfig);
+        var cache = new CacheService(requestorConfig, log);
         log.Write(cache);
 
         log.Write($"cache.Exists() = {cache.Exists()}");

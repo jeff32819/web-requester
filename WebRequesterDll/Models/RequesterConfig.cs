@@ -16,6 +16,16 @@ public class RequesterConfig
 
     public class CacheModel
     {
+        public CacheModel(string baseCacheFolder)
+        {
+
+        }
+
+        /// <summary>
+        /// for normal use
+        /// </summary>
+        /// <param name="baseCacheFolder"></param>
+        /// <param name="uri"></param>
         public CacheModel(string baseCacheFolder, Uri uri)
         {
             var hash = uri.ToMd5Hash();
