@@ -1,5 +1,5 @@
-﻿using Jeff32819DLL.MiscCore20;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+
 using WebRequesterDll.Models;
 
 namespace WebRequesterDll;
@@ -9,46 +9,30 @@ public class CacheService
     /// <summary>
     ///     Cache file config constructor
     /// </summary>
-    /// <param name="url"></param>
-    /// <param name="cacheFolder"></param>
-    public CacheService(string url, string cacheFolder)
+    /// <param name="requestorConfig"></param>
+    public CacheService(RequestorConfig requestorConfig)
     {
-        if (!Directory.Exists(cacheFolder))
-        {
-            throw new Exception("Cache folder does not exist");
-        }
-
         try
         {
-            Directory.CreateDirectory(cacheFolder);
+            Directory.CreateDirectory(requestorConfig.Cache.Folder);
         }
         catch (Exception ex)
         {
-            throw new Exception($"Cannot create folder {cacheFolder}", ex);
+            throw new Exception($"Cannot create folder {requestorConfig.Cache.Folder}", ex);
         }
-
-        var uri = new Uri(url);
-        var basePath = Path.Combine(cacheFolder, uri.Host);
-        Directory.CreateDirectory(basePath);
-        var hash = url.ToMd5Hash();
-        CacheInfo = new CacheInfoModel
-        {
-            Hash = hash,
-            JsonPath = Path.Combine(basePath, $"{hash}.json"),
-            HtmlPath = Path.Combine(basePath, $"{hash}.html")
-        };
+        RequestorConfig = requestorConfig;
     }
 
-    public CacheInfoModel CacheInfo { get; }
+    public RequestorConfig RequestorConfig { get; }
 
     /// <summary>
     ///     Save json object to file
     /// </summary>
-    /// <param name="request"></param>
+    /// <param name="request"></param>0
     public void Save(WebResponseResult request)
     {
-        File.WriteAllText(CacheInfo.HtmlPath, request.Content);
-        File.WriteAllText(CacheInfo.JsonPath, JsonConvert.SerializeObject(request.Info, Formatting.Indented));
+        File.WriteAllText(RequestorConfig.Cache.Html, request.Content);
+        File.WriteAllText(RequestorConfig.Cache.Json, JsonConvert.SerializeObject(request.Info, Formatting.Indented));
     }
 
     /// <summary>
@@ -57,7 +41,7 @@ public class CacheService
     /// <returns></returns>
     public WebResponseResult Read()
     {
-        var info = JsonConvert.DeserializeObject<WebResponseInfo>(File.ReadAllText(CacheInfo.JsonPath));
+        var info = JsonConvert.DeserializeObject<WebResponseInfo>(File.ReadAllText(RequestorConfig.Cache.Json));
         if (info == null)
         {
             throw new Exception("Failed to deserialize cache properties from JSON file");
@@ -66,7 +50,7 @@ public class CacheService
         return new WebResponseResult
         {
             IsCached = true,
-            Content = File.ReadAllText(CacheInfo.HtmlPath),
+            Content = File.ReadAllText(RequestorConfig.Cache.Html),
             Info = info
         };
     }
@@ -77,6 +61,6 @@ public class CacheService
     /// <returns></returns>
     public bool Exists()
     {
-        return File.Exists(CacheInfo.HtmlPath) && File.Exists(CacheInfo.JsonPath);
+        return File.Exists(RequestorConfig.Cache.Html) && File.Exists(RequestorConfig.Cache.Json);
     }
 }

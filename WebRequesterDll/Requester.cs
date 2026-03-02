@@ -23,29 +23,31 @@ public static class Requester
     /// </summary>
     public static int Timeout { get; set; } = 30;
     public static string UserAgent { get; set; } = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/74.0.3729.1235";
+
     /// <summary>
     ///     Get page from web
     /// </summary>
-    /// <param name="startUrl">Start url</param>
-    /// <param name="cacheFolder"></param>
+    /// <param name="requestorConfig"></param>
     /// <param name="cacheMode"></param>
     /// <param name="log"></param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(string startUrl, string cacheFolder, MyEnum.CacheMode cacheMode, JLog.FileLogger log)
+    public static async Task<WebResponseResult> GetFromWeb(RequestorConfig requestorConfig, MyEnum.CacheMode cacheMode, JLog.FileLogger log)
     {
 
         log.Write("WebRequesterDll.Requester.GetFromWeb()");
         log.Write($"UserAgent = {UserAgent}");
         log.Write($"Timeout = {Timeout} seconds");
-        log.Write($"startUrl = {startUrl}");
-        log.Write($"cacheFolder = {cacheFolder}");
         log.Write($"cacheMode = {cacheMode}");
+        log.Write("requestorConfig");
+        log.Write(requestorConfig);
 
-        if (!startUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new Exception("Can only parse links that start with HTTPS://");
-        }
-        var cache = new CacheService(startUrl, cacheFolder);
+
+        //if (!startUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        //{
+        //    throw new Exception("Can only parse links that start with HTTPS://");
+        //}
+
+        var cache = new CacheService(requestorConfig);
         log.Write(cache);
 
         log.Write($"cache.Exists() = {cache.Exists()}");
@@ -55,19 +57,18 @@ public static class Requester
             log.Write("Cache exists, reading from cache and returning cached result");
             return cache.Read();
         }
-        var result = await GetFromWebEach(startUrl, log);
-        result.Info.Cache = cache.CacheInfo;
+        var result = await GetFromWebEach(requestorConfig, log);
         cache.Save(result);
-        log.Write($"Saved to cache: {cache.CacheInfo.JsonPath}");
-        log.Write($"Saved to cache: {cache.CacheInfo.HtmlPath}");
+        log.Write($"Saved to cache: {requestorConfig.Cache.Json}");
+        log.Write($"Saved to cache: {requestorConfig.Cache.Html}");
         return result;
     }
 
 
-    private static async Task<WebResponseResult> GetFromWebEach(string startUrl, JLog.FileLogger log)
+    private static async Task<WebResponseResult> GetFromWebEach(RequestorConfig requesterConfig, JLog.FileLogger log)
     {
         using var client = ClientInit(true);
-        var response = await Request(client, startUrl);
+        var response = await Request(client, requesterConfig.StartUri.AbsoluteUri);
         if (response.ResponseMessage == null)
         {
             log.Write($"ErrorMessage = {response.ResponseStatus.ErrorMessage}");
@@ -78,9 +79,10 @@ public static class Requester
                 Content = "",
                 Info = new WebResponseInfo
                 {
+                    Cache = requesterConfig,
                     Url = new UrlModel
                     {
-                        Start = startUrl,
+                        Start = requesterConfig.StartUri.AbsoluteUri,
                         Final = "",
                         RedirectChain = []
                     },
@@ -108,7 +110,7 @@ public static class Requester
             {
                 Url = new UrlModel
                 {
-                    Start = startUrl,
+                    Start = requesterConfig.StartUri.AbsoluteUri,
                     Final = response.ResponseMessage.RequestMessage!.RequestUri!.ToString(),
                     RedirectChain = []
                 },
@@ -121,7 +123,7 @@ public static class Requester
             },
             Content = await response.ResponseMessage.Content.ReadAsStringAsync()
         };
-        log.Write($"StartUrl = {startUrl}");
+        log.Write($"StartUrl = {requesterConfig.StartUri.AbsoluteUri}");
         log.Write($"FinalUrl = {tmp.Info.Url.Final}");
         log.Write($"Status = {tmp.Info.Status}");
         log.Write($"CharSet = {tmp.Info.CharSet}");

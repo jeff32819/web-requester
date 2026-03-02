@@ -9,6 +9,6 @@
         public string MediaType { get; set; } = string.Empty;
         public Dictionary<string, string> ResponseHeaders { get; set; } = new();
         public Dictionary<string, string> ContentHeaders { get; set; } = new();
-        public CacheInfoModel Cache { get; set; }
+        public RequestorConfig Cache { get; set; }
     }
 }

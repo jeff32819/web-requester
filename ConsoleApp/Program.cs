@@ -1,8 +1,9 @@
 ﻿using Jeff32819DLL;
 using Newtonsoft.Json;
 using WebRequesterDll;
+using WebRequesterDll.Models;
 
-const string cacheFolder = @"X:\website-link-validator";
+const string cacheFolder = @"t:\test-web-requestor";
 const string domainName = "https://jeff32819.com/";
 //const string domainName = "https://jeffmathews.com/";
 //const string domainName = "https://www.jumpstartfitorlando.com/";
@@ -15,7 +16,8 @@ const string domainName = "https://jeff32819.com/";
 using var log = new JLog.FileLogger("t:\\web-requester-logs\\log.txt");
 try
 {
-    var response = await Requester.GetFromWeb(domainName, cacheFolder, MyEnum.CacheMode.UseCacheIfExists, log);
+    var requestorConfig = new RequestorConfig(cacheFolder, new Uri(domainName));
+    var response = await Requester.GetFromWeb(requestorConfig, MyEnum.CacheMode.UseCacheIfExists, log);
     Console.WriteLine(JsonConvert.SerializeObject(response.Info, Formatting.Indented));
     Console.WriteLine();
     Console.WriteLine($"HTML content length = {response.Content.Length}");
