@@ -16,7 +16,7 @@ const string domainName = "https://jeff32819.com/";
 using var log = new JLog.FileLogger("t:\\web-requester-logs\\log.txt");
 try
 {
-    var requestorConfig = new RequestorConfig(cacheFolder, new Uri(domainName));
+    var requestorConfig = new RequesterConfig(cacheFolder, new Uri(domainName));
     var response = await Requester.GetFromWeb(requestorConfig, MyEnum.CacheMode.UseCacheIfExists, log);
     Console.WriteLine(JsonConvert.SerializeObject(response.Info, Formatting.Indented));
     Console.WriteLine();

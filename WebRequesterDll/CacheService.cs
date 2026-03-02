@@ -10,7 +10,7 @@ public class CacheService
     ///     Cache file config constructor
     /// </summary>
     /// <param name="requestorConfig"></param>
-    public CacheService(RequestorConfig requestorConfig)
+    public CacheService(RequesterConfig requestorConfig)
     {
         try
         {
@@ -23,7 +23,7 @@ public class CacheService
         RequestorConfig = requestorConfig;
     }
 
-    public RequestorConfig RequestorConfig { get; }
+    public RequesterConfig RequestorConfig { get; }
 
     /// <summary>
     ///     Save json object to file

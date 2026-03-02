@@ -31,7 +31,7 @@ public static class Requester
     /// <param name="cacheMode"></param>
     /// <param name="log"></param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(RequestorConfig requestorConfig, MyEnum.CacheMode cacheMode, JLog.FileLogger log)
+    public static async Task<WebResponseResult> GetFromWeb(RequesterConfig requestorConfig, MyEnum.CacheMode cacheMode, JLog.FileLogger log)
     {
 
         log.Write("WebRequesterDll.Requester.GetFromWeb()");
@@ -65,7 +65,7 @@ public static class Requester
     }
 
 
-    private static async Task<WebResponseResult> GetFromWebEach(RequestorConfig requesterConfig, JLog.FileLogger log)
+    private static async Task<WebResponseResult> GetFromWebEach(RequesterConfig requesterConfig, JLog.FileLogger log)
     {
         using var client = ClientInit(true);
         var response = await Request(client, requesterConfig.StartUri.AbsoluteUri);

@@ -2,18 +2,12 @@
 
 namespace WebRequesterDll.Models;
 
-public class RequestorConfig
+public class RequesterConfig
 {
-    public RequestorConfig(string baseFolder, Uri uri)
+    public RequesterConfig(string baseCacheFolder, Uri uri)
     {
         var hash = uri.ToMd5Hash();
-        Cache = new CacheModel
-        {
-            Hash = hash,
-            Folder = Path.Combine(baseFolder, uri.Host),
-            Json = Path.Combine(baseFolder, uri.Host, $"{hash}.json"),
-            Html = Path.Combine(baseFolder, uri.Host, $"{hash}.html")
-        };
+        Cache = new CacheModel(baseCacheFolder, uri);
         Directory.CreateDirectory(Cache.Folder);
         StartUri = uri;
     }
@@ -22,6 +16,14 @@ public class RequestorConfig
 
     public class CacheModel
     {
+        public CacheModel(string baseCacheFolder, Uri uri)
+        {
+            var hash = uri.ToMd5Hash();
+            Hash = hash;
+            Folder = Path.Combine(baseCacheFolder, uri.Host);
+            Json = Path.Combine(baseCacheFolder, uri.Host, $"{hash}.json");
+            Html = Path.Combine(baseCacheFolder, uri.Host, $"{hash}.html");
+        }
         public string Folder { get; set; }
 
         /// <summary>
