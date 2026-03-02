@@ -21,8 +21,8 @@ public class RequesterConfig
             var hash = uri.ToMd5Hash();
             Hash = hash;
             Folder = Path.Combine(baseCacheFolder, uri.Host);
-            Json = Path.Combine(baseCacheFolder, uri.Host, $"{hash}.json");
-            Html = Path.Combine(baseCacheFolder, uri.Host, $"{hash}.html");
+            Json = Path.Combine(Folder, $"{hash}.json");
+            Html = Path.Combine(Folder, $"{hash}.html");
         }
         public string Folder { get; set; }
 
