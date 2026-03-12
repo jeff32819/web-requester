@@ -31,13 +31,11 @@ public static class Requester
     /// <param name="cacheMode"></param>
     /// <param name="log"></param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(RequesterConfig requestorConfig, MyEnum.CacheMode cacheMode, JLog.FileLogger log)
+    public static async Task<WebResponseResult> GetFromWeb(RequesterConfig requestorConfig, JLog.FileLogger log)
     {
-
         log.Write("WebRequesterDll.Requester.GetFromWeb()");
         log.Write($"UserAgent = {UserAgent}");
         log.Write($"Timeout = {Timeout} seconds");
-        log.Write($"cacheMode = {cacheMode}");
         log.Write("requestorConfig");
         log.Write(requestorConfig);
 
@@ -50,13 +48,7 @@ public static class Requester
         var cache = new CacheService(requestorConfig, log);
         log.Write(cache);
 
-        log.Write($"cache.Exists() = {cache.Exists()}");
-
-        if (cache.Exists() && cacheMode == MyEnum.CacheMode.UseCacheIfExists)
-        {
-            log.Write("Cache exists, reading from cache and returning cached result");
-            return cache.Read();
-        }
+        
         var result = await GetFromWebEach(requestorConfig, log);
         cache.Save(result);
         log.Write($"Saved to cache: {requestorConfig.Cache.Json}");

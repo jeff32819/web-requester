@@ -28,7 +28,7 @@ using var log = new JLog.FileLogger("t:\\web-requester-logs\\log.txt");
 try
 {
     var requestorConfig = new RequesterConfig(cacheFolder, new Uri(domainName));
-    var response = await Requester.GetFromWeb(requestorConfig, MyEnum.CacheMode.UseCacheIfExists, log);
+    var response = await Requester.GetFromWeb(requestorConfig, log);
     Console.WriteLine(JsonConvert.SerializeObject(response.Info, Formatting.Indented));
     Console.WriteLine();
     Console.WriteLine($"HTML content length = {response.Content.Length}");
