@@ -40,6 +40,30 @@ public partial class WebRequesterContext : DbContext
 
         modelBuilder.Entity<pageTbl>(entity =>
         {
+            entity.HasIndex(e => e.md5, "IX_pageTbl");
+
+            entity.Property(e => e.addedTimeStamp)
+                .HasDefaultValueSql("(getutcdate())")
+                .HasAnnotation("Relational:DefaultConstraintName", "DF_pageTbl_addedTimeStamp");
+            entity.Property(e => e.errorMessage)
+                .IsRequired()
+                .HasMaxLength(1000)
+                .IsUnicode(false)
+                .HasDefaultValue("")
+                .HasAnnotation("Relational:DefaultConstraintName", "DF_pageTbl_errorMessage");
+            entity.Property(e => e.html)
+                .IsRequired()
+                .IsUnicode(false)
+                .HasDefaultValue("")
+                .HasAnnotation("Relational:DefaultConstraintName", "DF_pageTbl_html");
+            entity.Property(e => e.md5)
+                .IsRequired()
+                .HasMaxLength(32)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.updatedTimeStamp)
+                .HasDefaultValueSql("(getutcdate())")
+                .HasAnnotation("Relational:DefaultConstraintName", "DF_pageTbl_updatedTimeStamp");
             entity.Property(e => e.url)
                 .IsRequired()
                 .IsUnicode(false);

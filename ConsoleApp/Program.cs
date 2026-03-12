@@ -16,7 +16,10 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddMyDatabaseServices(@"Data Source=(local)\dev14;Initial Catalog=WebRequester;Integrated Security=True;Encrypt=False;");
 using IHost host = builder.Build();
 var dbSvc = host.Services.GetRequiredService<IDatabaseService>();
-var count = await dbSvc.Ping();
+var count = await dbSvc.PingAsync();
+await dbSvc.PageAddAsync("http://example.com");
+
+//await dbSvc.PageLinkAddAsync();
 
 Console.WriteLine(count);
 

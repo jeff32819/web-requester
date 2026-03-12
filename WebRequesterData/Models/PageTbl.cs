@@ -9,7 +9,19 @@ public partial class pageTbl
 {
     public int id { get; set; }
 
+    public int? statusCode { get; set; }
+
     public string url { get; set; }
+
+    public string errorMessage { get; set; }
+
+    public string md5 { get; set; }
+
+    public DateTime updatedTimeStamp { get; set; }
+
+    public DateTime addedTimeStamp { get; set; }
+
+    public string html { get; set; }
 
     public virtual ICollection<pageLinkTbl> pageLinkTbllink { get; set; } = new List<pageLinkTbl>();
 
