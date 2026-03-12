@@ -52,14 +52,8 @@ internal class DatabaseService(WebRequesterContext db) : IDatabaseService
     }
 
 
-    public async Task<pageLinkTbl> PageLinkAddAsync()
+    public async Task PageLinkAddAsync(int pageId, int linkId)
     {
-        db.pageLinkTbl.Add(new pageLinkTbl
-        {
-            pageId = 1,
-            linkId = 1
-        });
-        await db.SaveChangesAsync();
-        return new pageLinkTbl();
+        db
     }
 }
