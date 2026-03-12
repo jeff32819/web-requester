@@ -12,7 +12,4 @@
     <PackageReference Include="JLog" Version="1.0.26" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\WebRequesterData\WebRequesterData.csproj" />
-  </ItemGroup>
 </Project>
