@@ -51,9 +51,14 @@ internal class DatabaseService(WebRequesterContext db) : IDatabaseService
         await db.SaveChangesAsync();
     }
 
-
+    /// <summary>
+    /// Page and link join
+    /// </summary>
+    /// <param name="pageId"></param>
+    /// <param name="linkId"></param>
+    /// <returns></returns>
     public async Task PageLinkAddAsync(int pageId, int linkId)
     {
-        db
+        await db.Procedures.pageLinkInsertSpAsync(pageId, linkId);
     }
 }

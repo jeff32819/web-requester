@@ -6,7 +6,7 @@ public interface IDatabaseService
 {
     Task<int> PingAsync();
     Task<pageTbl> PageGetAsync(string url);
-    Task<pageLinkTbl> PageLinkAddAsync();
+    Task PageLinkAddAsync(int pageId, int linkId);
     Task PageUpdateAsync(pageTbl page);
 
 }
