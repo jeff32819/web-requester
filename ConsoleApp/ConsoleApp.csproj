@@ -9,9 +9,11 @@
 
   <ItemGroup>
     <PackageReference Include="JLog" Version="1.0.26" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.4" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\WebRequesterData\WebRequesterData.csproj" />
     <ProjectReference Include="..\WebRequesterDll\WebRequesterDll.csproj" />
   </ItemGroup>
 

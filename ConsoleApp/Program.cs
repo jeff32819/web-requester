@@ -1,7 +1,32 @@
 ﻿using Jeff32819DLL;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
+using WebRequesterData;
 using WebRequesterDll;
 using WebRequesterDll.Models;
+
+
+
+
+
+
+
+var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddMyDatabaseServices(@"Data Source=(local)\dev14;Initial Catalog=WebRequester;Integrated Security=True;Encrypt=False;");
+using IHost host = builder.Build();
+var dbSvc = host.Services.GetRequiredService<IDatabaseService>();
+var count = await dbSvc.Ping();
+
+Console.WriteLine(count);
+
+
+
+return;
+
+
+
+
 
 const string cacheFolder = @"t:\test-web-requestor";
 const string domainName = "https://jeff32819.com/";
