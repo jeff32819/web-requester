@@ -16,8 +16,10 @@ using WebRequesterDll.Models;
 
 const string cacheFolder = @"t:\test-web-requestor";
 
-const string domainName = "https://test-bad-link.com/";
+const string domainName = "http://localhost/";
 
+
+// const string domainName = "https://test-bad-link.com/";
 // const string domainName = "https://jeff32819.com/";
 // const string domainName = "https://jeffmathews.com/";
 // const string domainName = "https://www.jumpstartfitorlando.com/";
