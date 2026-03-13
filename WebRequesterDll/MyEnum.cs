@@ -1,13 +1,7 @@
 ﻿namespace WebRequesterDll
 {
-    public class MyEnum
+    public static class MyEnum
     {
-        public enum CacheMode
-        {
-            UseCacheIfExists = 0,
-            ForceRefresh = 1
-        }
-
         public enum RequestErrorCodeEnum
         {
             None,

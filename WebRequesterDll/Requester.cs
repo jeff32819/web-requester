@@ -44,15 +44,8 @@ public static class Requester
         //{
         //    throw new Exception("Can only parse links that start with HTTPS://");
         //}
-
-        var cache = new CacheService(requestorConfig, log);
-        log.Write(cache);
-
-        
+       
         var result = await GetFromWebEach(requestorConfig, log);
-        cache.Save(result);
-        log.Write($"Saved to cache: {requestorConfig.Cache.Json}");
-        log.Write($"Saved to cache: {requestorConfig.Cache.Html}");
         return result;
     }
 
