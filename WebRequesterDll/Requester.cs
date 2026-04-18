@@ -37,7 +37,7 @@ public static class Requester
         log.Write($"UserAgent = {UserAgent}");
         log.Write($"Timeout = {Timeout} seconds");
         log.Write("requestorConfig");
-        log.Write(requestorConfig);
+
 
 
         //if (!startUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
