@@ -33,10 +33,10 @@ public static class Requester
     /// <returns></returns>
     public static async Task<WebResponseResult> GetFromWeb(RequesterConfig requestorConfig, JLog.FileLogger log)
     {
-        log.Write("WebRequesterDll.Requester.GetFromWeb()");
-        log.Write($"UserAgent = {UserAgent}");
-        log.Write($"Timeout = {Timeout} seconds");
-        log.Write("requestorConfig");
+        GlobalEvents.RaiseProcessCompleted("WebRequesterDll.Requester.GetFromWeb()");
+        GlobalEvents.RaiseProcessCompleted($"UserAgent = {UserAgent}");
+        GlobalEvents.RaiseProcessCompleted($"Timeout = {Timeout} seconds");
+        GlobalEvents.RaiseProcessCompleted("requestorConfig");
 
 
 
@@ -56,8 +56,8 @@ public static class Requester
         var response = await Request(client, requesterConfig.StartUri.AbsoluteUri);
         if (response.ResponseMessage == null)
         {
-            log.Write($"ErrorMessage = {response.ResponseStatus.ErrorMessage}");
-            log.Write($"ErrorCode = {response.ResponseStatus.ErrorCode}");
+            GlobalEvents.RaiseProcessCompleted($"ErrorMessage = {response.ResponseStatus.ErrorMessage}");
+            GlobalEvents.RaiseProcessCompleted($"ErrorCode = {response.ResponseStatus.ErrorCode}");
             return new WebResponseResult
             {
                 IsCached = false,
@@ -86,7 +86,7 @@ public static class Requester
         var contentHeaders = contentHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
         var resonseHeaders = resonseHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
         var contentLength = response.ResponseMessage.Content.Headers.ContentLength;
-        log.Write($"ContentLength = {contentLength}");
+        GlobalEvents.RaiseProcessCompleted($"ContentLength = {contentLength}");
 
         var tmp = new WebResponseResult
         {
@@ -108,10 +108,10 @@ public static class Requester
             },
             Content = await response.ResponseMessage.Content.ReadAsStringAsync()
         };
-        log.Write($"StartUrl = {requesterConfig.StartUri.AbsoluteUri}");
-        log.Write($"FinalUrl = {tmp.Info.Url.Final}");
-        log.Write($"Status = {tmp.Info.Status}");
-        log.Write($"CharSet = {tmp.Info.CharSet}");
+        GlobalEvents.RaiseProcessCompleted($"StartUrl = {requesterConfig.StartUri.AbsoluteUri}");
+        GlobalEvents.RaiseProcessCompleted($"FinalUrl = {tmp.Info.Url.Final}");
+        GlobalEvents.RaiseProcessCompleted($"Status = {tmp.Info.Status}");
+        GlobalEvents.RaiseProcessCompleted($"CharSet = {tmp.Info.CharSet}");
         return tmp;
     }
 

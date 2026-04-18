@@ -5,6 +5,9 @@ using WebRequesterDll.Models;
 
 const string cacheFolder = @"t:\test-web-requestor";
 using var log = new JLog.FileLogger(@"t:\web-requester-logs\log.txt");
+
+// No "new" needed, just subscribe directly to the class
+GlobalEvents.ProcessCompleted += (s, msg) => Console.WriteLine("------------ " + msg);
 try
 {
     var requestorConfig = new RequesterConfig(cacheFolder, new Uri(TestWebsites.Jeff32819));
@@ -15,7 +18,7 @@ try
 }
 catch (Exception ex)
 {
-    log.Write(ex.Message);
+    GlobalEvents.RaiseProcessCompleted($"Exception = {ex.Message}");
 }
 
 Console.WriteLine();
