@@ -31,7 +31,7 @@ public static class Requester
     /// <param name="cacheMode"></param>
     /// <param name="log"></param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(RequesterConfig requestorConfig)
+    public static async Task<WebResponseResult> GetFromWeb(Uri startUri)
     {
         WebRequesterEvents.RaiseProcessCompleted("WebRequesterDll.Requester.GetFromWeb()");
         WebRequesterEvents.RaiseProcessCompleted($"UserAgent = {UserAgent}");
@@ -45,15 +45,15 @@ public static class Requester
         //    throw new Exception("Can only parse links that start with HTTPS://");
         //}
        
-        var result = await GetFromWebEach(requestorConfig);
+        var result = await GetFromWebEach(startUri);
         return result;
     }
 
 
-    private static async Task<WebResponseResult> GetFromWebEach(RequesterConfig requesterConfig)
+    private static async Task<WebResponseResult> GetFromWebEach(Uri startUri)
     {
         using var client = ClientInit(true);
-        var response = await Request(client, requesterConfig.StartUri.AbsoluteUri);
+        var response = await Request(client, startUri.AbsoluteUri);
         if (response.ResponseMessage == null)
         {
             WebRequesterEvents.RaiseProcessCompleted($"ErrorMessage = {response.ResponseStatus.ErrorMessage}");
@@ -64,10 +64,9 @@ public static class Requester
                 Content = "",
                 Info = new WebResponseInfo
                 {
-                    Cache = requesterConfig,
                     Url = new UrlModel
                     {
-                        Start = requesterConfig.StartUri.AbsoluteUri,
+                        Start = startUri.AbsoluteUri,
                         Final = "",
                         RedirectChain = []
                     },
@@ -95,7 +94,7 @@ public static class Requester
             {
                 Url = new UrlModel
                 {
-                    Start = requesterConfig.StartUri.AbsoluteUri,
+                    Start = startUri.AbsoluteUri,
                     Final = response.ResponseMessage.RequestMessage!.RequestUri!.ToString(),
                     RedirectChain = []
                 },
@@ -108,7 +107,7 @@ public static class Requester
             },
             Content = await response.ResponseMessage.Content.ReadAsStringAsync()
         };
-        WebRequesterEvents.RaiseProcessCompleted($"StartUrl = {requesterConfig.StartUri.AbsoluteUri}");
+        WebRequesterEvents.RaiseProcessCompleted($"StartUrl = {startUri.AbsoluteUri}");
         WebRequesterEvents.RaiseProcessCompleted($"FinalUrl = {tmp.Info.Url.Final}");
         WebRequesterEvents.RaiseProcessCompleted($"Status = {tmp.Info.Status}");
         WebRequesterEvents.RaiseProcessCompleted($"CharSet = {tmp.Info.CharSet}");

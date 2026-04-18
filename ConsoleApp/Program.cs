@@ -5,8 +5,8 @@ using WebRequesterDll.Models;
 WebRequesterEvents.ProcessCompleted += (s, msg) => Console.WriteLine("------------ " + msg);
 try
 {
-    var requestorConfig = new RequesterConfig(new Uri(TestWebsites.Jeff32819));
-    var response = await Requester.GetFromWeb(requestorConfig);
+    var startUri =new Uri(TestWebsites.Jeff32819);
+    var response = await Requester.GetFromWeb(startUri);
     Console.WriteLine(JsonConvert.SerializeObject(response.Info, Formatting.Indented));
     Console.WriteLine();
     Console.WriteLine($"HTML content length = {response.Content.Length}");
