@@ -4,7 +4,7 @@
 /// usage:
 /// console app: GlobalEvents.ProcessCompleted += (s, msg) => Console.WriteLine(msg);
 /// </summary>
-public static class GlobalEvents
+public static class WebRequesterEvents
 {
     // A static event can be accessed without creating an instance
     public static event EventHandler<string>? ProcessCompleted;

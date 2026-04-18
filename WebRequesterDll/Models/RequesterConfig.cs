@@ -4,7 +4,7 @@ namespace WebRequesterDll.Models;
 
 public class RequesterConfig
 {
-    public RequesterConfig(string baseCacheFolder, Uri uri)
+    public RequesterConfig(Uri uri)
     {
         StartUri = uri;
     }

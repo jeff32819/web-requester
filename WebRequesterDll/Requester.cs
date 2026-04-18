@@ -31,12 +31,12 @@ public static class Requester
     /// <param name="cacheMode"></param>
     /// <param name="log"></param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(RequesterConfig requestorConfig, JLog.FileLogger log)
+    public static async Task<WebResponseResult> GetFromWeb(RequesterConfig requestorConfig)
     {
-        GlobalEvents.RaiseProcessCompleted("WebRequesterDll.Requester.GetFromWeb()");
-        GlobalEvents.RaiseProcessCompleted($"UserAgent = {UserAgent}");
-        GlobalEvents.RaiseProcessCompleted($"Timeout = {Timeout} seconds");
-        GlobalEvents.RaiseProcessCompleted("requestorConfig");
+        WebRequesterEvents.RaiseProcessCompleted("WebRequesterDll.Requester.GetFromWeb()");
+        WebRequesterEvents.RaiseProcessCompleted($"UserAgent = {UserAgent}");
+        WebRequesterEvents.RaiseProcessCompleted($"Timeout = {Timeout} seconds");
+        WebRequesterEvents.RaiseProcessCompleted("requestorConfig");
 
 
 
@@ -45,19 +45,19 @@ public static class Requester
         //    throw new Exception("Can only parse links that start with HTTPS://");
         //}
        
-        var result = await GetFromWebEach(requestorConfig, log);
+        var result = await GetFromWebEach(requestorConfig);
         return result;
     }
 
 
-    private static async Task<WebResponseResult> GetFromWebEach(RequesterConfig requesterConfig, JLog.FileLogger log)
+    private static async Task<WebResponseResult> GetFromWebEach(RequesterConfig requesterConfig)
     {
         using var client = ClientInit(true);
         var response = await Request(client, requesterConfig.StartUri.AbsoluteUri);
         if (response.ResponseMessage == null)
         {
-            GlobalEvents.RaiseProcessCompleted($"ErrorMessage = {response.ResponseStatus.ErrorMessage}");
-            GlobalEvents.RaiseProcessCompleted($"ErrorCode = {response.ResponseStatus.ErrorCode}");
+            WebRequesterEvents.RaiseProcessCompleted($"ErrorMessage = {response.ResponseStatus.ErrorMessage}");
+            WebRequesterEvents.RaiseProcessCompleted($"ErrorCode = {response.ResponseStatus.ErrorCode}");
             return new WebResponseResult
             {
                 IsCached = false,
@@ -86,7 +86,7 @@ public static class Requester
         var contentHeaders = contentHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
         var resonseHeaders = resonseHeadersRaw.ToDictionary(h => h.Key, h => string.Join("|", h.Value)); // join multiple values
         var contentLength = response.ResponseMessage.Content.Headers.ContentLength;
-        GlobalEvents.RaiseProcessCompleted($"ContentLength = {contentLength}");
+        WebRequesterEvents.RaiseProcessCompleted($"ContentLength = {contentLength}");
 
         var tmp = new WebResponseResult
         {
@@ -108,10 +108,10 @@ public static class Requester
             },
             Content = await response.ResponseMessage.Content.ReadAsStringAsync()
         };
-        GlobalEvents.RaiseProcessCompleted($"StartUrl = {requesterConfig.StartUri.AbsoluteUri}");
-        GlobalEvents.RaiseProcessCompleted($"FinalUrl = {tmp.Info.Url.Final}");
-        GlobalEvents.RaiseProcessCompleted($"Status = {tmp.Info.Status}");
-        GlobalEvents.RaiseProcessCompleted($"CharSet = {tmp.Info.CharSet}");
+        WebRequesterEvents.RaiseProcessCompleted($"StartUrl = {requesterConfig.StartUri.AbsoluteUri}");
+        WebRequesterEvents.RaiseProcessCompleted($"FinalUrl = {tmp.Info.Url.Final}");
+        WebRequesterEvents.RaiseProcessCompleted($"Status = {tmp.Info.Status}");
+        WebRequesterEvents.RaiseProcessCompleted($"CharSet = {tmp.Info.CharSet}");
         return tmp;
     }
 

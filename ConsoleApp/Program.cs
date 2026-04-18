@@ -1,24 +1,19 @@
-﻿using Jeff32819DLL;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using WebRequesterDll;
 using WebRequesterDll.Models;
 
-const string cacheFolder = @"t:\test-web-requestor";
-using var log = new JLog.FileLogger(@"t:\web-requester-logs\log.txt");
-
-// No "new" needed, just subscribe directly to the class
-GlobalEvents.ProcessCompleted += (s, msg) => Console.WriteLine("------------ " + msg);
+WebRequesterEvents.ProcessCompleted += (s, msg) => Console.WriteLine("------------ " + msg);
 try
 {
-    var requestorConfig = new RequesterConfig(cacheFolder, new Uri(TestWebsites.Jeff32819));
-    var response = await Requester.GetFromWeb(requestorConfig, log);
+    var requestorConfig = new RequesterConfig(new Uri(TestWebsites.Jeff32819));
+    var response = await Requester.GetFromWeb(requestorConfig);
     Console.WriteLine(JsonConvert.SerializeObject(response.Info, Formatting.Indented));
     Console.WriteLine();
     Console.WriteLine($"HTML content length = {response.Content.Length}");
 }
 catch (Exception ex)
 {
-    GlobalEvents.RaiseProcessCompleted($"Exception = {ex.Message}");
+    WebRequesterEvents.RaiseProcessCompleted($"Exception = {ex.Message}");
 }
 
 Console.WriteLine();
@@ -38,5 +33,4 @@ internal static class TestWebsites
     public const string JeffMathews = "https://jeffmathews.com/";
     public const string Localhost = "http://localhost/";
     public const string SebastianMoving = "https://sebastianmoving.com";
-
 }
