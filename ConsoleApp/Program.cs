@@ -3,36 +3,11 @@ using Newtonsoft.Json;
 using WebRequesterDll;
 using WebRequesterDll.Models;
 
-
-//await dbSvc.PageGetAsync("http://example.com");
-
-////await dbSvc.PageLinkAddAsync();
-
-//Console.WriteLine(count);
-
-
-//return;
-
-
 const string cacheFolder = @"t:\test-web-requestor";
-
-const string domainName = "http://localhost/";
-
-
-// const string domainName = "https://test-bad-link.com/";
-// const string domainName = "https://jeff32819.com/";
-// const string domainName = "https://jeffmathews.com/";
-// const string domainName = "https://www.jumpstartfitorlando.com/";
-// const string domainName = "https://seeworthyconsulting.com/";
-// const string domainName = "https://homecontrolfreak.com/";
-// const string domainName = "https://www.tesla.com/powerwall";
-// const string domainName = "https://www.creativefabrica.com/";
-
-
-using var log = new JLog.FileLogger("t:\\web-requester-logs\\log.txt");
+using var log = new JLog.FileLogger(@"t:\web-requester-logs\log.txt");
 try
 {
-    var requestorConfig = new RequesterConfig(cacheFolder, new Uri(domainName));
+    var requestorConfig = new RequesterConfig(cacheFolder, new Uri(TestWebsites.Jeff32819));
     var response = await Requester.GetFromWeb(requestorConfig, log);
     Console.WriteLine(JsonConvert.SerializeObject(response.Info, Formatting.Indented));
     Console.WriteLine();
@@ -46,3 +21,19 @@ catch (Exception ex)
 Console.WriteLine();
 Console.WriteLine("------------------- press any key to exit");
 Console.ReadKey();
+
+
+internal static class TestWebsites
+{
+    public const string TestBadLink = "https://test-bad-link.com/";
+    public const string JumpsStartFitOrlando = "https://www..com/";
+    public const string SeeworthyConsulting = "https://seeworthyconsulting.com/";
+    public const string HomeControlFreak = "https://homecontrolfreak.com/";
+    public const string Tesla = "https://www.tesla.com/powerwall";
+    public const string CreativeFabrica = "https://www.creativefabrica.com/";
+    public const string Jeff32819 = "https://jeff32819.com/";
+    public const string JeffMathews = "https://jeffmathews.com/";
+    public const string Localhost = "http://localhost/";
+    public const string SebastianMoving = "https://sebastianmoving.com";
+
+}
