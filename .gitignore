@@ -1,5 +1,14 @@
+# Auto generated: 05/13/2026 18:48:35
+#
+.contextkeeper/
 .vs/
+**/.obsidian/
+**/.vshistory/
 bin/
+node_modules/
 obj/
 packages/
-**/.vshistory/
+#
+# Manual Entries Below:
+#
+# NO MANUAL ITEMS FOUND
