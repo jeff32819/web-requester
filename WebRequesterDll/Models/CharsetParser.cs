@@ -5,39 +5,53 @@ namespace WebRequesterDll.Models
 
     public class CharsetParser
     {
+        private static readonly HashSet<string> s_invalidCharsets = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "utf8",
+            "utf8mb4",
+            "utf-8mb4"
+        };
+
         public CharsetParser(HttpResponseMessage httpResponse)
         {
-            var charset = httpResponse.Content.Headers.ContentType?.CharSet;
+            var contentType = httpResponse.Content.Headers.ContentType;
+            var charset = contentType?.CharSet;
+
             if (string.IsNullOrWhiteSpace(charset))
             {
                 return;
             }
+
             RawEncoding = charset;
-            var contentType = httpResponse.Content.Headers.ContentType;
+            var cleanCharset = charset.Trim('"');
+
             try
             {
-                Encoding = Encoding.GetEncoding(charset.Trim('"'));
+                Encoding = Encoding.GetEncoding(cleanCharset);
             }
             catch (ArgumentException)
             {
-                // Log here
+                // Log here: The initial charset was not recognized by the system.
             }
-            // List of known invalid charsets to normalize
-            var invalidCharsets = new[] { "utf8", "utf8mb4", "utf-8mb4" };
-            if (!invalidCharsets.Any(c => charset.Equals(c, StringComparison.OrdinalIgnoreCase)))
+
+            // Normalize known non-standard charsets to "utf-8".
+            if (!s_invalidCharsets.Contains(cleanCharset))
             {
                 return;
             }
-            if (contentType == null || string.IsNullOrEmpty(contentType.MediaType))
+
+            if (string.IsNullOrEmpty(contentType?.MediaType))
             {
                 return;
             }
+
             var newContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType.MediaType)
             {
                 CharSet = "utf-8"
             };
+
             httpResponse.Content.Headers.ContentType = newContentType;
-            Encoding = Encoding.GetEncoding(newContentType.CharSet);
+            Encoding = Encoding.UTF8;
             EncodingWasFixed = true;
         }
 
