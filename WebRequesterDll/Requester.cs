@@ -1,8 +1,5 @@
 ﻿using System.Net.Sockets;
 using System.Security.Authentication;
-
-using Jeff32819DLL;
-
 using WebRequesterDll.Models;
 
 namespace WebRequesterDll;
@@ -19,41 +16,34 @@ namespace WebRequesterDll;
 public static class Requester
 {
     /// <summary>
-    /// Timeout for HTTP requests in seconds. Default is 30 seconds. Can be configured before calling GetFromWeb or GetFromWebWithRedirects.
+    ///     Timeout for HTTP requests in seconds. Default is 30 seconds. Can be configured before calling GetFromWeb or
+    ///     GetFromWebWithRedirects.
     /// </summary>
     public static int Timeout { get; set; } = 30;
+
     public static string UserAgent { get; set; } = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/74.0.3729.1235";
 
     /// <summary>
     ///     Get page from web
     /// </summary>
-    /// <param name="requestorConfig"></param>
-    /// <param name="cacheMode"></param>
-    /// <param name="log"></param>
+    /// <param name="requestedUri"></param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(Uri startUri)
+    public static async Task<WebResponseResult> GetFromWeb(Uri requestedUri)
     {
         WebRequesterEvents.RaiseProcessCompleted("WebRequesterDll.Requester.GetFromWeb()");
         WebRequesterEvents.RaiseProcessCompleted($"UserAgent = {UserAgent}");
         WebRequesterEvents.RaiseProcessCompleted($"Timeout = {Timeout} seconds");
         WebRequesterEvents.RaiseProcessCompleted("requestorConfig");
 
-
-
-        //if (!startUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        //{
-        //    throw new Exception("Can only parse links that start with HTTPS://");
-        //}
-       
-        var result = await GetFromWebEach(startUri);
+        var result = await GetFromWebEach(requestedUri);
         return result;
     }
 
 
-    private static async Task<WebResponseResult> GetFromWebEach(Uri startUri)
+    private static async Task<WebResponseResult> GetFromWebEach(Uri requestedUri)
     {
         using var client = ClientInit(true);
-        var response = await Request(client, startUri.AbsoluteUri);
+        var response = await Request(client, requestedUri.AbsoluteUri);
         if (response.ResponseMessage == null)
         {
             WebRequesterEvents.RaiseProcessCompleted($"ErrorMessage = {response.ResponseStatus.ErrorMessage}");
@@ -66,7 +56,7 @@ public static class Requester
                 {
                     Url = new UrlModel
                     {
-                        Start = startUri.AbsoluteUri,
+                        Start = requestedUri.AbsoluteUri,
                         Final = "",
                         RedirectChain = []
                     },
@@ -94,7 +84,7 @@ public static class Requester
             {
                 Url = new UrlModel
                 {
-                    Start = startUri.AbsoluteUri,
+                    Start = requestedUri.AbsoluteUri,
                     Final = response.ResponseMessage.RequestMessage!.RequestUri!.ToString(),
                     RedirectChain = []
                 },
@@ -107,7 +97,7 @@ public static class Requester
             },
             Content = await response.ResponseMessage.Content.ReadAsStringAsync()
         };
-        WebRequesterEvents.RaiseProcessCompleted($"StartUrl = {startUri.AbsoluteUri}");
+        WebRequesterEvents.RaiseProcessCompleted($"StartUrl = {requestedUri.AbsoluteUri}");
         WebRequesterEvents.RaiseProcessCompleted($"FinalUrl = {tmp.Info.Url.Final}");
         WebRequesterEvents.RaiseProcessCompleted($"Status = {tmp.Info.Status}");
         WebRequesterEvents.RaiseProcessCompleted($"CharSet = {tmp.Info.CharSet}");
