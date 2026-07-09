@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.Security;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 
@@ -6,6 +7,7 @@ namespace WebRequesterDll;
 
 public class BulkDomainAuditor
 {
+    private const string SslExpiryKey = "SslExpiry";
     private static readonly HttpClient _scraperClient;
 
     static BulkDomainAuditor()
@@ -13,15 +15,39 @@ public class BulkDomainAuditor
         var handler = new HttpClientHandler
         {
             AllowAutoRedirect = false,
-            ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+            ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
+            {
+                if (message.RequestUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        // 1. Verify if the certificate has policy issues (expired, host mismatch, untrusted root)
+                        var isValid = errors == SslPolicyErrors.None;
+
+                        if (isValid && cert != null && DateTime.TryParse(cert.GetExpirationDateString(), out var expiry))
+                        {
+                            // PASS: Store the valid timestamp
+                            message.Options.Set(new HttpRequestOptionsKey<DateTime>(SslExpiryKey), expiry);
+                        }
+                        else
+                        {
+                            // FAIL: Pass MinValue as a sentinel flag meaning "SSL exists but is broken/untrusted"
+                            message.Options.Set(new HttpRequestOptionsKey<DateTime>(SslExpiryKey), DateTime.MinValue);
+                        }
+                    }
+                    catch
+                    {
+                        // Fail-safe protection fallback
+                        message.Options.Set(new HttpRequestOptionsKey<DateTime>(SslExpiryKey), DateTime.MinValue);
+                    }
+                }
+
+                return true; // Return true to prevent HttpClient from throwing a terminal WebException
+            }
         };
 
-        _scraperClient = new HttpClient(handler)
-        {
-            Timeout = TimeSpan.FromSeconds(6)
-        };
+        _scraperClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(6) };
 
-        // --- BYPASS FIREWALLS: Mimic a real desktop Chrome browser ---
         _scraperClient.DefaultRequestHeaders.Clear();
         _scraperClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
         _scraperClient.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
@@ -36,11 +62,9 @@ public class BulkDomainAuditor
             return null;
         }
 
-        // 1. STRIP ALL INVISIBLE AND WRONG CHARACTERS (including \u00A0 and tabs)
-        var sanitized = Regex.Replace(rawInput, @"[^\x20-\x7E]", ""); // Removes non-ASCII
+        var sanitized = Regex.Replace(rawInput, @"[^\x20-\x7E]", "");
         sanitized = sanitized.Replace(" ", "").Replace("\t", "").Replace("\r", "").Replace("\n", "");
 
-        // 2. Extract base host name cleanly
         var baseDomain = sanitized.Replace("https://", "", StringComparison.OrdinalIgnoreCase)
             .Replace("http://", "", StringComparison.OrdinalIgnoreCase)
             .Replace("www.", "", StringComparison.OrdinalIgnoreCase)
@@ -68,13 +92,15 @@ public class BulkDomainAuditor
             var trace = await TraceUrlAsync(url);
             report.Traces.Add(trace);
 
-            if (!trace.IsUnreachable && trace.FinalStatusCode == 200 && !string.IsNullOrEmpty(trace.FinalResolvedUrl))
+            if (trace is not { IsUnreachable: false, FinalStatusCode: 200 } || string.IsNullOrEmpty(trace.FinalResolvedUrl))
             {
-                var normalizedDest = trace.FinalResolvedUrl.ToLower().TrimEnd('/');
-                if (!report.UniqueDestinations.Contains(normalizedDest))
-                {
-                    report.UniqueDestinations.Add(normalizedDest);
-                }
+                continue;
+            }
+
+            var normalizedDest = trace.FinalResolvedUrl.ToLower().TrimEnd('/');
+            if (!report.UniqueDestinations.Contains(normalizedDest))
+            {
+                report.UniqueDestinations.Add(normalizedDest);
             }
         }
 
@@ -97,7 +123,7 @@ public class BulkDomainAuditor
     {
         var trace = new EndpointTrace { StartingUrl = url };
         var currentUrl = url;
-        const int maxHops = 6; // Safety circuit-breaker
+        const int maxHops = 6;
 
         try
         {
@@ -106,7 +132,12 @@ public class BulkDomainAuditor
                 using var response = await _scraperClient.GetAsync(currentUrl);
                 trace.FinalStatusCode = (int)response.StatusCode;
 
-                // Handle all types of redirects (301, 302, 307, 308)
+                // Extract the SSL value captured during the handshake layer
+                if (response.RequestMessage.Options.TryGetValue(new HttpRequestOptionsKey<DateTime>(SslExpiryKey), out var expiryDate))
+                {
+                    trace.SslExpirationDate = expiryDate;
+                }
+
                 if (response.StatusCode == HttpStatusCode.MovedPermanently ||
                     response.StatusCode == HttpStatusCode.Found ||
                     response.StatusCode == (HttpStatusCode)307 ||
@@ -120,7 +151,6 @@ public class BulkDomainAuditor
                         break;
                     }
 
-                    // Fix relative URLs
                     if (!nextUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                     {
                         nextUrl = new Uri(new Uri(currentUrl), nextUrl).ToString();
@@ -145,7 +175,14 @@ public class BulkDomainAuditor
         {
             trace.IsUnreachable = true;
             trace.ErrorMessage = ex.InnerException?.Message ?? ex.Message;
-            trace.FinalResolvedUrl = currentUrl; // Keep track of where it died
+            trace.FinalResolvedUrl = currentUrl;
+
+            // Handle complete connection/DNS dropouts (Status 0 errors)
+            if (currentUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && trace.SslExpirationDate == null)
+            {
+                // If an HTTPS trace crashed out at socket level before dropping options, it failed SSL handshake/reachability entirely
+                trace.SslExpirationDate = DateTime.MinValue;
+            }
         }
 
         return trace;
@@ -156,7 +193,6 @@ public class BulkDomainAuditor
         try
         {
             var html = await _scraperClient.GetStringAsync(report.DiscoveredPrimaryUrl);
-
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
 
@@ -205,4 +241,13 @@ public class EndpointTrace
     public int FinalStatusCode { get; set; }
     public bool IsUnreachable { get; set; }
     public string ErrorMessage { get; set; }
+
+    // Master Model Properties
+    public DateTime? SslExpirationDate { get; set; }
+
+    // Nullable Expression-Bodied shorthand logic
+    // Null = Plain text HTTP route (No evaluation checked)
+    // False = Encountered bad/mismatched/unreachable certificate configuration (MinValue)
+    // True = Clean, valid handshake resolved
+    public bool? IsSslValid => SslExpirationDate == null ? null : SslExpirationDate.Value != DateTime.MinValue;
 }

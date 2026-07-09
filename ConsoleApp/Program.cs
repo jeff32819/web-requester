@@ -1,55 +1,64 @@
 ﻿using Newtonsoft.Json;
 using WebRequesterDll;
-using WebRequesterDll.Models;
-
 
 
 // Use await in asynchronous pipelines:
-DomainAuditReport report = await BulkDomainAuditor.AuditDomainAsync("seeworthyconsulting.com");
+var report = await BulkDomainAuditor.AuditDomainAsync("jeff32819.com");
 
 if (report != null)
 {
-    Console.WriteLine($"Domain: {report.BaseDomain}");
-    Console.WriteLine($"Primary URL: {report.DiscoveredPrimaryUrl ?? "None Found"}");
+    Console.WriteLine($"Discovered Primary URL: {report.DiscoveredPrimaryUrl ?? "None Found"}");
+    Console.WriteLine($"HTML Canonical Tag Found: {report.HtmlCanonicalTagValue ?? "NONE DETECTED"}");
     Console.WriteLine($"Has SEO Issue? {report.HasCanonicalizationIssue}");
+    Console.WriteLine();
     foreach (var trace in report.Traces)
     {
+
+
+        var sslInfo = trace.SslExpirationDate.HasValue
+            ? $"SSL Expires: {trace.SslExpirationDate.Value.ToShortDateString()}"
+            : "No SSL/HTTP";
+
+
+        Console.WriteLine($"{trace.StartingUrl}");
+        Console.WriteLine($"\t-- {sslInfo}");
+        Console.WriteLine($"\t-- IsSslValid: {trace.IsSslValid}");
+        
         if (trace.HopCount > 0)
         {
-            // Clarify that it redirected to a final, healthy page
-            Console.WriteLine($"-> Start: {trace.StartingUrl} --(Redirected in {trace.HopCount} hop)--> Ended at: {trace.FinalResolvedUrl} (Status: {trace.FinalStatusCode})");
+            Console.WriteLine($"\t-- (Redirected in {trace.HopCount} hop)");
+            Console.WriteLine($"\t-- Ended at: {trace.FinalResolvedUrl}");
+            Console.WriteLine($"\t-- (Status: {trace.FinalStatusCode})");
         }
         else
         {
-            // No hops, it just loaded directly
-            Console.WriteLine($"-> Start: {trace.StartingUrl} (Loaded directly with Status: {trace.FinalStatusCode})");
+            Console.WriteLine($"\t-- (Loaded directly with Status: {trace.FinalStatusCode})");
         }
+        Console.WriteLine();
+    }
+
+
+    if (string.IsNullOrEmpty(report.HtmlCanonicalTagValue))
+    {
+        Console.WriteLine("⚠️ WARNING: Missing HTML canonical tag entirely. If server redirects fail, duplicate content will occur.");
+    }
+    else if (report.CanonicalTagMatchesDestination)
+    {
+        Console.WriteLine("✅ PASS: The HTML canonical tag perfectly matches the target endpoint.");
+    }
+    else
+    {
+        Console.WriteLine($"🚨 CRITICAL MISMATCH: The HTML tag points to '{report.HtmlCanonicalTagValue}' but the browser landed on '{report.DiscoveredPrimaryUrl}'. This heavily confuses search indexers!");
     }
 }
-Console.WriteLine($"Discovered Primary URL: {report.DiscoveredPrimaryUrl}");
-Console.WriteLine($"HTML Canonical Tag Found: {report.HtmlCanonicalTagValue ?? "NONE DETECTED"}");
 
-if (string.IsNullOrEmpty(report.HtmlCanonicalTagValue))
-{
-    Console.WriteLine("⚠️ WARNING: Missing HTML canonical tag entirely. If server redirects fail, duplicate content will occur.");
-}
-else if (report.CanonicalTagMatchesDestination)
-{
-    Console.WriteLine("✅ PASS: The HTML canonical tag perfectly matches the target endpoint.");
-}
-else
-{
-    Console.WriteLine($"🚨 CRITICAL MISMATCH: The HTML tag points to '{report.HtmlCanonicalTagValue}' but the browser landed on '{report.DiscoveredPrimaryUrl}'. This heavily confuses search indexers!");
-}
 Console.ReadLine();
-
-
 
 
 WebRequesterEvents.ProcessCompleted += (s, msg) => Console.WriteLine("------------ " + msg);
 try
 {
-    var startUri =new Uri(TestWebsites.Jeff32819);
+    var startUri = new Uri(TestWebsites.Jeff32819);
     var response = await Requester.GetFromWeb(startUri);
     Console.WriteLine(JsonConvert.SerializeObject(response.Info, Formatting.Indented));
     Console.WriteLine();
