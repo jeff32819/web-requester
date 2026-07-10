@@ -33,9 +33,9 @@ if (report != null)
         Console.WriteLine();
     }
 
-    Console.WriteLine(report.GetCanonicalMessage());
+//    Console.WriteLine(report.CanonicalMessage);
 }
-string jsonString = JsonConvert.SerializeObject(report, Formatting.Indented);
+var jsonString = JsonConvert.SerializeObject(report, Formatting.Indented);
 
 // Write to file
 File.WriteAllText("t:\\audit-report.json", jsonString);

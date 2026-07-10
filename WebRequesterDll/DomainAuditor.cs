@@ -228,9 +228,9 @@ public class DomainAuditor
         }
     }
 }
-
 public class DomainAuditReport
 {
+    public EndpointTrace SslExpirationTrace { get; set; }
     public string BaseDomain { get; set; }
     public bool HasCanonicalizationIssue { get; set; }
     public string DiscoveredPrimaryUrl { get; set; }
@@ -239,40 +239,104 @@ public class DomainAuditReport
     public string HtmlCanonicalTagValue { get; set; }
     public bool CanonicalTagMatchesDestination { get; set; }
 
-    public CanonicalTagStatus HtmlCanonicalEvaluation
+
+    /// <summary>
+    /// Returns unified SSL health data ONLY if there is exactly 1 unique destination.
+    /// Returns null if there are canonicalization splits or zero site resolution.
+    /// </summary>
+    public ConsolidatedSslDetails ConsolidatedSsl
     {
         get
         {
-            if (string.IsNullOrEmpty(DiscoveredPrimaryUrl))
+            if (UniqueDestinations.Count != 1 || string.IsNullOrEmpty(DiscoveredPrimaryUrl))
             {
-                return CanonicalTagStatus.NoSiteResolution;
+                return null; // Grouped atomic nullability state
             }
 
-            if (string.IsNullOrEmpty(HtmlCanonicalTagValue))
-            {
-                return CanonicalTagStatus.Missing;
-            }
+            // Locate the exact trace path that resolved to the single primary winning endpoint
+            var primaryTrace = Traces.FirstOrDefault(t =>
+                t.FinalResolvedUrl != null &&
+                t.FinalResolvedUrl.ToLower().TrimEnd('/') == DiscoveredPrimaryUrl.ToLower().TrimEnd('/'));
 
-            return CanonicalTagMatchesDestination
-                ? CanonicalTagStatus.Match
-                : CanonicalTagStatus.Mismatch;
+            if (primaryTrace == null) return null;
+
+            return new ConsolidatedSslDetails
+            {
+                DomainName = !string.IsNullOrEmpty(primaryTrace.FinalResolvedUrl)
+                    ? new Uri(primaryTrace.FinalResolvedUrl).Host
+                    : BaseDomain,
+                IsSslValid = primaryTrace.IsSslValid,
+                ExpirationDate = primaryTrace.SslExpirationDate,
+                ExpiresInDays = (primaryTrace.SslExpirationDate == null || primaryTrace.SslExpirationDate == DateTime.MinValue)
+                    ? null
+                    : (int)(primaryTrace.SslExpirationDate.Value - DateTime.UtcNow).TotalDays
+            };
         }
     }
 
-    public string GetCanonicalMessage()
+    // =========================================================================
+    // NEW: ENCAPSULATED HTML CANONICAL CONTAINER
+    // =========================================================================
+
+    /// <summary>
+    /// Gets the encapsulated evaluation and message details for the HTML Canonical tag check.
+    /// </summary>
+    public HtmlCanonicalDetails HtmlCanonical => new(
+        DiscoveredPrimaryUrl,
+        HtmlCanonicalTagValue,
+        CanonicalTagMatchesDestination
+    );
+}
+
+
+
+public class HtmlCanonicalDetails
+{
+    // Expose the raw evaluated values for the API/Database
+    public CanonicalTagStatus Evaluation { get; }
+    public string EvaluationString => Evaluation.ToString();
+    public string Message { get; }
+
+    // Constructor handles the logic cleanly upon instantiation
+    public HtmlCanonicalDetails(string discoveredPrimaryUrl, string htmlCanonicalTagValue, bool canonicalTagMatchesDestination)
     {
-        return HtmlCanonicalEvaluation switch
+        // 1. Calculate the evaluation status
+        if (string.IsNullOrEmpty(discoveredPrimaryUrl))
+        {
+            Evaluation = CanonicalTagStatus.NoSiteResolution;
+        }
+        else if (string.IsNullOrEmpty(htmlCanonicalTagValue))
+        {
+            Evaluation = CanonicalTagStatus.Missing;
+        }
+        else
+        {
+            Evaluation = canonicalTagMatchesDestination
+                ? CanonicalTagStatus.Match
+                : CanonicalTagStatus.Mismatch;
+        }
+
+        // 2. Generate the message
+        Message = Evaluation switch
         {
             CanonicalTagStatus.NoSiteResolution => "FAIL: Could not establish a secure connection to any domain variant. HTML verification skipped.",
             CanonicalTagStatus.Missing => "WARNING: Missing HTML canonical tag entirely. If server redirects fail, duplicate content will occur.",
             CanonicalTagStatus.Match => "PASS: The HTML canonical tag perfectly matches the target endpoint.",
-            CanonicalTagStatus.Mismatch => $"CRITICAL MISMATCH: The HTML tag points to '{HtmlCanonicalTagValue}' but the browser landed on '{DiscoveredPrimaryUrl}'. This heavily confuses search indexers!",
-            // Safe fallback prevents API crashes if an unhandled enum boundary occurs
+            CanonicalTagStatus.Mismatch => $"CRITICAL MISMATCH: The HTML tag points to '{htmlCanonicalTagValue}' but the browser landed on '{discoveredPrimaryUrl}'. This heavily confuses search indexers!",
             _ => "Unknown canonical verification status state encountered."
         };
     }
 }
-
+/// <summary>
+/// Holds consolidated metrics for single-destination domains.
+/// </summary>
+public class ConsolidatedSslDetails
+{
+    public string DomainName { get; set; }
+    public bool? IsSslValid { get; set; }
+    public DateTime? ExpirationDate { get; set; }
+    public int? ExpiresInDays { get; set; }
+}
 public enum CanonicalTagStatus
 {
     NoSiteResolution,
@@ -299,3 +363,4 @@ public class EndpointTrace
     // True = Clean, valid handshake resolved
     public bool? IsSslValid => SslExpirationDate == null ? null : SslExpirationDate.Value != DateTime.MinValue;
 }
+
