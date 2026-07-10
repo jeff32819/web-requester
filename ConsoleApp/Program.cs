@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using WebRequesterDll;
 
-var report = await DomainAuditor.AuditDomainAsync("seeworthyconsulting.com");
+var report = await DomainAuditor.AuditDomainAsync("jeffmathews.com");
 
 if (report != null)
 {
