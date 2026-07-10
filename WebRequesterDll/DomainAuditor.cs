@@ -5,12 +5,12 @@ using HtmlAgilityPack;
 
 namespace WebRequesterDll;
 
-public class BulkDomainAuditor
+public class DomainAuditor
 {
     private const string SslExpiryKey = "SslExpiry";
     private static readonly HttpClient _scraperClient;
 
-    static BulkDomainAuditor()
+    static DomainAuditor()
     {
         var handler = new HttpClientHandler
         {
@@ -47,7 +47,6 @@ public class BulkDomainAuditor
         };
 
         _scraperClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(6) };
-
         _scraperClient.DefaultRequestHeaders.Clear();
         _scraperClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
         _scraperClient.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
@@ -87,9 +86,17 @@ public class BulkDomainAuditor
             $"https://www.{baseDomain}/"
         };
 
-        foreach (var url in variants)
+        // --- REPLACES YOUR OLD SEQUENTIAL FOREACH LOOP ---
+
+        // 1. Kick off all 4 network trace tasks at the exact same time
+        var traceTasks = variants.Select(TraceUrlAsync).ToList();
+
+        // 2. Await them all concurrently
+        var completedTraces = await Task.WhenAll(traceTasks);
+
+        // 3. Process the results together once they are all finished
+        foreach (var trace in completedTraces)
         {
-            var trace = await TraceUrlAsync(url);
             report.Traces.Add(trace);
 
             if (trace is not { IsUnreachable: false, FinalStatusCode: 200 } || string.IsNullOrEmpty(trace.FinalResolvedUrl))
@@ -231,6 +238,47 @@ public class DomainAuditReport
     public List<EndpointTrace> Traces { get; set; } = new();
     public string HtmlCanonicalTagValue { get; set; }
     public bool CanonicalTagMatchesDestination { get; set; }
+
+    public CanonicalTagStatus HtmlCanonicalEvaluation
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(DiscoveredPrimaryUrl))
+            {
+                return CanonicalTagStatus.NoSiteResolution;
+            }
+
+            if (string.IsNullOrEmpty(HtmlCanonicalTagValue))
+            {
+                return CanonicalTagStatus.Missing;
+            }
+
+            return CanonicalTagMatchesDestination
+                ? CanonicalTagStatus.Match
+                : CanonicalTagStatus.Mismatch;
+        }
+    }
+
+    public string GetCanonicalMessage()
+    {
+        return HtmlCanonicalEvaluation switch
+        {
+            CanonicalTagStatus.NoSiteResolution => "FAIL: Could not establish a secure connection to any domain variant. HTML verification skipped.",
+            CanonicalTagStatus.Missing => "WARNING: Missing HTML canonical tag entirely. If server redirects fail, duplicate content will occur.",
+            CanonicalTagStatus.Match => "PASS: The HTML canonical tag perfectly matches the target endpoint.",
+            CanonicalTagStatus.Mismatch => $"CRITICAL MISMATCH: The HTML tag points to '{HtmlCanonicalTagValue}' but the browser landed on '{DiscoveredPrimaryUrl}'. This heavily confuses search indexers!",
+            // Safe fallback prevents API crashes if an unhandled enum boundary occurs
+            _ => "Unknown canonical verification status state encountered."
+        };
+    }
+}
+
+public enum CanonicalTagStatus
+{
+    NoSiteResolution,
+    Missing,
+    Match,
+    Mismatch
 }
 
 public class EndpointTrace

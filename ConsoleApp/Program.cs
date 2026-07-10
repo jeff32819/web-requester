@@ -1,9 +1,7 @@
 ﻿using Newtonsoft.Json;
 using WebRequesterDll;
 
-
-// Use await in asynchronous pipelines:
-var report = await BulkDomainAuditor.AuditDomainAsync("jeff32819.com");
+var report = await DomainAuditor.AuditDomainAsync("seeworthyconsulting.com");
 
 if (report != null)
 {
@@ -13,8 +11,6 @@ if (report != null)
     Console.WriteLine();
     foreach (var trace in report.Traces)
     {
-
-
         var sslInfo = trace.SslExpirationDate.HasValue
             ? $"SSL Expires: {trace.SslExpirationDate.Value.ToShortDateString()}"
             : "No SSL/HTTP";
@@ -37,21 +33,12 @@ if (report != null)
         Console.WriteLine();
     }
 
-
-    if (string.IsNullOrEmpty(report.HtmlCanonicalTagValue))
-    {
-        Console.WriteLine("⚠️ WARNING: Missing HTML canonical tag entirely. If server redirects fail, duplicate content will occur.");
-    }
-    else if (report.CanonicalTagMatchesDestination)
-    {
-        Console.WriteLine("✅ PASS: The HTML canonical tag perfectly matches the target endpoint.");
-    }
-    else
-    {
-        Console.WriteLine($"🚨 CRITICAL MISMATCH: The HTML tag points to '{report.HtmlCanonicalTagValue}' but the browser landed on '{report.DiscoveredPrimaryUrl}'. This heavily confuses search indexers!");
-    }
+    Console.WriteLine(report.GetCanonicalMessage());
 }
+string jsonString = JsonConvert.SerializeObject(report, Formatting.Indented);
 
+// Write to file
+File.WriteAllText("t:\\audit-report.json", jsonString);
 Console.ReadLine();
 
 
