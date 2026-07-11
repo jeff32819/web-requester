@@ -5,7 +5,7 @@ using HtmlAgilityPack;
 
 namespace WebRequesterDll;
 
-public class DomainAuditor
+public static class DomainAuditor
 {
     private const string SslExpiryKey = "SslExpiry";
     private static readonly HttpClient _scraperClient;
@@ -61,14 +61,20 @@ public class DomainAuditor
             return null;
         }
 
-        var sanitized = Regex.Replace(rawInput, @"[^\x20-\x7E]", "");
-        sanitized = sanitized.Replace(" ", "").Replace("\t", "").Replace("\r", "").Replace("\n", "");
+        // 1. Strip out non-printable ASCII/control characters if your raw inputs have junk data
+        var sanitizedInput = Regex.Replace(rawInput, @"[^\x20-\x7E]", "").Trim();
 
-        var baseDomain = sanitized.Replace("https://", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("http://", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("www.", "", StringComparison.OrdinalIgnoreCase)
-            .Split('/')[0]
-            .Trim();
+        // 2. Use the clean TryParse pattern to safely extract the host root
+        if (!DomainName.TryParse(sanitizedInput, out var extractedHost))
+        {
+            Console.WriteLine($"❌ Error: Could not parse a valid domain host from raw input: '{rawInput}'");
+            return null;
+        }
+
+        // 3. (Optional) Strip "www." if your engine treats "www.domain.com" and "domain.com" as the same base identity
+        var baseDomain = extractedHost.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
+            ? extractedHost.Substring(4)
+            : extractedHost;
 
         if (string.IsNullOrWhiteSpace(baseDomain))
         {
@@ -76,8 +82,10 @@ public class DomainAuditor
             return null;
         }
 
+        // Create the report with our pristine base domain name
         var report = new DomainAuditReport { BaseDomain = baseDomain };
 
+        // This remains perfectly safe and predictable now
         var variants = new[]
         {
             $"http://{baseDomain}/",
@@ -86,7 +94,7 @@ public class DomainAuditor
             $"https://www.{baseDomain}/"
         };
 
-        // --- REPLACES YOUR OLD SEQUENTIAL FOREACH LOOP ---
+        // --- CONCURRENT NETWORK TRACE ---
 
         // 1. Kick off all 4 network trace tasks at the exact same time
         var traceTasks = variants.Select(TraceUrlAsync).ToList();
@@ -228,6 +236,7 @@ public class DomainAuditor
         }
     }
 }
+
 public class DomainAuditReport
 {
     public EndpointTrace SslExpirationTrace { get; set; }
@@ -241,8 +250,8 @@ public class DomainAuditReport
 
 
     /// <summary>
-    /// Returns unified SSL health data ONLY if there is exactly 1 unique destination.
-    /// Returns null if there are canonicalization splits or zero site resolution.
+    ///     Returns unified SSL health data ONLY if there is exactly 1 unique destination.
+    ///     Returns null if there are canonicalization splits or zero site resolution.
     /// </summary>
     public ConsolidatedSslDetails ConsolidatedSsl
     {
@@ -258,7 +267,10 @@ public class DomainAuditReport
                 t.FinalResolvedUrl != null &&
                 t.FinalResolvedUrl.ToLower().TrimEnd('/') == DiscoveredPrimaryUrl.ToLower().TrimEnd('/'));
 
-            if (primaryTrace == null) return null;
+            if (primaryTrace == null)
+            {
+                return null;
+            }
 
             return new ConsolidatedSslDetails
             {
@@ -267,7 +279,7 @@ public class DomainAuditReport
                     : BaseDomain,
                 IsSslValid = primaryTrace.IsSslValid,
                 ExpirationDate = primaryTrace.SslExpirationDate,
-                ExpiresInDays = (primaryTrace.SslExpirationDate == null || primaryTrace.SslExpirationDate == DateTime.MinValue)
+                ExpiresInDays = primaryTrace.SslExpirationDate == null || primaryTrace.SslExpirationDate == DateTime.MinValue
                     ? null
                     : (int)(primaryTrace.SslExpirationDate.Value - DateTime.UtcNow).TotalDays
             };
@@ -279,7 +291,7 @@ public class DomainAuditReport
     // =========================================================================
 
     /// <summary>
-    /// Gets the encapsulated evaluation and message details for the HTML Canonical tag check.
+    ///     Gets the encapsulated evaluation and message details for the HTML Canonical tag check.
     /// </summary>
     public HtmlCanonicalDetails HtmlCanonical => new(
         DiscoveredPrimaryUrl,
@@ -288,15 +300,8 @@ public class DomainAuditReport
     );
 }
 
-
-
 public class HtmlCanonicalDetails
 {
-    // Expose the raw evaluated values for the API/Database
-    public CanonicalTagStatus Evaluation { get; }
-    public string EvaluationString => Evaluation.ToString();
-    public string Message { get; }
-
     // Constructor handles the logic cleanly upon instantiation
     public HtmlCanonicalDetails(string discoveredPrimaryUrl, string htmlCanonicalTagValue, bool canonicalTagMatchesDestination)
     {
@@ -326,9 +331,15 @@ public class HtmlCanonicalDetails
             _ => "Unknown canonical verification status state encountered."
         };
     }
+
+    // Expose the raw evaluated values for the API/Database
+    public CanonicalTagStatus Evaluation { get; }
+    public string EvaluationString => Evaluation.ToString();
+    public string Message { get; }
 }
+
 /// <summary>
-/// Holds consolidated metrics for single-destination domains.
+///     Holds consolidated metrics for single-destination domains.
 /// </summary>
 public class ConsolidatedSslDetails
 {
@@ -337,6 +348,7 @@ public class ConsolidatedSslDetails
     public DateTime? ExpirationDate { get; set; }
     public int? ExpiresInDays { get; set; }
 }
+
 public enum CanonicalTagStatus
 {
     NoSiteResolution,
@@ -363,4 +375,3 @@ public class EndpointTrace
     // True = Clean, valid handshake resolved
     public bool? IsSslValid => SslExpirationDate == null ? null : SslExpirationDate.Value != DateTime.MinValue;
 }
-
