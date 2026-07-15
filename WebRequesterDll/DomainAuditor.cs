@@ -239,7 +239,7 @@ public static class DomainAuditor
 
 public class DomainAuditReport
 {
-    public EndpointTrace SslExpirationTrace { get; set; }
+    public int Version { get; set; } = 1;
     public string BaseDomain { get; set; }
     public bool HasCanonicalizationIssue { get; set; }
     public string DiscoveredPrimaryUrl { get; set; }
