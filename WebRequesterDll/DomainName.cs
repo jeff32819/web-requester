@@ -18,7 +18,12 @@ public static class DomainName
         }
         // Normalize if missing a scheme so raw domains don't fail parsing
         var urlToParse = url;
-        if (!url.Contains("://") && !url.StartsWith("//"))
+        if (url.StartsWith("//", StringComparison.Ordinal))
+        {
+            // Scheme-relative ("//example.com") still needs a scheme for UriKind.Absolute to parse it
+            urlToParse = $"https:{url}";
+        }
+        else if (!url.Contains("://"))
         {
             urlToParse = $"https://{url}";
         }

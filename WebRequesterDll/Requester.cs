@@ -1,6 +1,7 @@
 ﻿using System.Net.Sockets;
 using System.Security.Authentication;
 using WebRequesterDll.Models;
+using static WebRequesterDll.MyEnum;
 
 namespace WebRequesterDll;
 
@@ -10,40 +11,57 @@ namespace WebRequesterDll;
 /// </summary>
 /// <remarks>
 ///     The Requester class is intended for scenarios where you need to fetch web pages or analyze HTTP
-///     redirect chains. All methods are thread-safe and can be used concurrently. Returned results include both the
-///     original and final URLs, as well as the full HTTP response and any intermediate redirects encountered.
+///     redirect chains. Returned results include both the original and final URLs, as well as the full HTTP response
+///     and any intermediate redirects encountered.
 /// </remarks>
 public static class Requester
 {
     /// <summary>
-    ///     Timeout for HTTP requests in seconds. Default is 30 seconds. Can be configured before calling GetFromWeb or
-    ///     GetFromWebWithRedirects.
+    ///     Default timeout for HTTP requests in seconds, used when GetFromWeb is called without an explicit
+    ///     <c>timeoutSeconds</c> argument. Changing this affects every subsequent call that relies on the default,
+    ///     so concurrent callers that need different timeouts should pass <c>timeoutSeconds</c> explicitly instead
+    ///     of mutating this shared property.
     /// </summary>
     public static int Timeout { get; set; } = 30;
 
+    /// <summary>
+    ///     Default User-Agent header, used when GetFromWeb is called without an explicit <c>userAgent</c> argument.
+    ///     Concurrent callers that need different user agents should pass <c>userAgent</c> explicitly instead of
+    ///     mutating this shared property.
+    /// </summary>
     public static string UserAgent { get; set; } = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/74.0.3729.1235";
+
+    /// <summary>
+    ///     Shared client for the lifetime of the process. Reusing one HttpClient (with auto-redirect enabled)
+    ///     avoids the socket-exhaustion issues caused by creating/disposing an HttpClient per request.
+    /// </summary>
+    private static readonly HttpClient _client = new(new HttpClientHandler { AllowAutoRedirect = true });
 
     /// <summary>
     ///     Get page from web
     /// </summary>
     /// <param name="requestedUri"></param>
+    /// <param name="timeoutSeconds">Per-call timeout override; defaults to <see cref="Timeout"/> when omitted.</param>
+    /// <param name="userAgent">Per-call User-Agent override; defaults to <see cref="UserAgent"/> when omitted.</param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(Uri requestedUri)
+    public static async Task<WebResponseResult> GetFromWeb(Uri requestedUri, int? timeoutSeconds = null, string? userAgent = null)
     {
+        var effectiveTimeout = timeoutSeconds ?? Timeout;
+        var effectiveUserAgent = userAgent ?? UserAgent;
+
         WebRequesterEvents.RaiseProcessCompleted("WebRequesterDll.Requester.GetFromWeb()");
-        WebRequesterEvents.RaiseProcessCompleted($"UserAgent = {UserAgent}");
-        WebRequesterEvents.RaiseProcessCompleted($"Timeout = {Timeout} seconds");
+        WebRequesterEvents.RaiseProcessCompleted($"UserAgent = {effectiveUserAgent}");
+        WebRequesterEvents.RaiseProcessCompleted($"Timeout = {effectiveTimeout} seconds");
         WebRequesterEvents.RaiseProcessCompleted("requestorConfig");
 
-        var result = await GetFromWebEach(requestedUri);
+        var result = await GetFromWebEach(requestedUri, effectiveTimeout, effectiveUserAgent);
         return result;
     }
 
 
-    private static async Task<WebResponseResult> GetFromWebEach(Uri requestedUri)
+    private static async Task<WebResponseResult> GetFromWebEach(Uri requestedUri, int timeoutSeconds, string userAgent)
     {
-        using var client = ClientInit(true);
-        var response = await Request(client, requestedUri.AbsoluteUri);
+        var response = await Request(_client, requestedUri.AbsoluteUri, timeoutSeconds, userAgent);
         if (response.ResponseMessage == null)
         {
             WebRequesterEvents.RaiseProcessCompleted($"ErrorMessage = {response.ResponseStatus.ErrorMessage}");
@@ -61,7 +79,6 @@ public static class Requester
                         RedirectChain = []
                     },
                     Status = response.ResponseStatus,
-                    // CharsetParsed = new CharsetParser(response),
                     CharSet = "",
                     MediaType = "",
                     ResponseHeaders = new Dictionary<string, string>(),
@@ -88,7 +105,6 @@ public static class Requester
                     Final = response.ResponseMessage.RequestMessage!.RequestUri!.ToString(),
                     RedirectChain = []
                 },
-                // CharsetParsed = new CharsetParser(response),
                 Status = response.ResponseStatus,
                 CharSet = response.ResponseMessage.Content.Headers.ContentType?.CharSet ?? "",
                 MediaType = response.ResponseMessage.Content.Headers.ContentType?.MediaType ?? "",
@@ -105,11 +121,15 @@ public static class Requester
     }
 
 
-    private static async Task<HttpResponseMsg> Request(HttpClient client, string url)
+    private static async Task<HttpResponseMsg> Request(HttpClient client, string url, int timeoutSeconds, string userAgent)
     {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
         try
         {
-            var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.UserAgent.ParseAdd(userAgent);
+
+            var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
             response.EnsureSuccessStatusCode();
             return new HttpResponseMsg
             {
@@ -117,164 +137,56 @@ public static class Requester
                 ResponseStatus = new HttpReponseStatus
                 {
                     StatusCode = (int)response.StatusCode,
-                    ErrorCode = ""
+                    ErrorCode = RequestErrorCodeEnum.None
                 }
             };
         }
         catch (HttpRequestException ex) when
             (ex.InnerException is SocketException { SocketErrorCode: SocketError.HostNotFound })
         {
-            return new HttpResponseMsg
-            {
-                ResponseMessage = null,
-                ResponseStatus = new HttpReponseStatus
-                {
-                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.DnsFailure),
-                    ErrorMessage = ex.Message
-                }
-            };
+            return ErrorResult(RequestErrorCodeEnum.DnsFailure, ex.Message);
         }
-        catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
-            return new HttpResponseMsg
-            {
-                ResponseMessage = null,
-                ResponseStatus = new HttpReponseStatus
-                {
-                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.Timeout),
-                    ErrorMessage = ex.Message
-                }
-            };
+            return ErrorResult(RequestErrorCodeEnum.Timeout, $"Request timed out after {timeoutSeconds} second(s).");
         }
         catch (HttpRequestException ex) when (ex.InnerException is IOException)
         {
-            return new HttpResponseMsg
-            {
-                ResponseMessage = null,
-                ResponseStatus = new HttpReponseStatus
-                {
-                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.ConnectionError),
-                    ErrorMessage = ex.Message
-                }
-            };
+            return ErrorResult(RequestErrorCodeEnum.ConnectionError, ex.Message);
         }
         catch (HttpRequestException ex) when
             (ex.InnerException is AuthenticationException ||
              ex.Message.Contains("SSL", StringComparison.OrdinalIgnoreCase))
         {
-            return new HttpResponseMsg
-            {
-                ResponseMessage = null,
-                ResponseStatus = new HttpReponseStatus
-                {
-                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.SslError),
-                    ErrorMessage = ex.Message
-                }
-            };
+            return ErrorResult(RequestErrorCodeEnum.SslError, ex.Message);
         }
         // ⭐ Detect 404, 500, 301, 403, etc.
         catch (HttpRequestException ex) when (ex.StatusCode is { } code)
         {
-            return new HttpResponseMsg
-            {
-                ResponseMessage = null,
-                ResponseStatus = new HttpReponseStatus
-                {
-                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.HttpError),
-                    StatusCode = (int)code,
-                    ErrorMessage = ex.Message
-                }
-            };
+            return ErrorResult(RequestErrorCodeEnum.HttpError, ex.Message, (int)code);
         }
-
         // Fallback for HttpRequestException with NO status code (network errors)
         catch (HttpRequestException ex)
         {
-            return new HttpResponseMsg
-            {
-                ResponseMessage = null,
-                ResponseStatus = new HttpReponseStatus
-                {
-                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.HttpError),
-                    ErrorMessage = ex.Message
-                }
-            };
+            return ErrorResult(RequestErrorCodeEnum.HttpError, ex.Message);
         }
         catch (Exception ex)
         {
-            return new HttpResponseMsg
-            {
-                ResponseMessage = null,
-                ResponseStatus = new HttpReponseStatus
-                {
-                    ErrorCode = nameof(MyEnum.RequestErrorCodeEnum.Unexpected),
-                    ErrorMessage = ex.Message
-                }
-            };
+            return ErrorResult(RequestErrorCodeEnum.Unexpected, ex.Message);
         }
     }
 
-    /// <summary>
-    ///     Init client object.
-    /// </summary>
-    /// <param name="allowAutoRedirect"></param>
-    /// <returns></returns>
-    private static HttpClient ClientInit(bool allowAutoRedirect)
+    private static HttpResponseMsg ErrorResult(RequestErrorCodeEnum errorCode, string errorMessage, int statusCode = 0)
     {
-        var handler = new HttpClientHandler
+        return new HttpResponseMsg
         {
-            AllowAutoRedirect = allowAutoRedirect
+            ResponseMessage = null,
+            ResponseStatus = new HttpReponseStatus
+            {
+                StatusCode = statusCode,
+                ErrorCode = errorCode,
+                ErrorMessage = errorMessage
+            }
         };
-        var client = new HttpClient(handler);
-        client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
-        client.Timeout = TimeSpan.FromSeconds(Timeout); // Set timeout to configured value
-        return client;
-    }
-
-    /// <summary>
-    ///     Get redirects, useful if a link with redirects is considered invalid
-    /// </summary>
-    /// <param name="startUrl"></param>
-    /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWebWithRedirects(string startUrl)
-    {
-        // jeff2do
-        throw new NotImplementedException("need to add more props... see other method above");
-
-
-        //using var client = ClientInit(false);
-        //var currentUrl = startUrl;
-        //var rv = new WebResponseResult
-        //{
-        //    Properties = new WebReponseProps
-        //    {
-        //        StartUrl = startUrl
-        //    }
-        //};
-        //while (true)
-        //{
-        //    var response = await client.GetAsync(currentUrl);
-
-        //    Console.WriteLine($"Visited: {currentUrl} (Status: {(int)response.StatusCode})");
-
-        //    if ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400)
-        //    {
-        //        var locationHeader = response.Headers.Location;
-        //        if (locationHeader == null)
-        //        {
-        //            continue;
-        //        }
-        //        var nextUrl = !locationHeader.IsAbsoluteUri ? new Uri(new Uri(currentUrl), locationHeader) : locationHeader;
-        //        Console.WriteLine($"Redirected to: {nextUrl}");
-        //        rv.Properties.RedirectChain.Add(nextUrl.ToString());
-        //        currentUrl = nextUrl.ToString();
-        //    }
-        //    else
-        //    {
-        //        rv.Properties.FinalUrl = response.RequestMessage?.RequestUri?.ToString() ?? "null";
-        //        rv.Content = await response.Content.ReadAsStringAsync();
-        //        return rv;
-        //    }
-        //}
     }
 }

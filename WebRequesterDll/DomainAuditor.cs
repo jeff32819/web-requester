@@ -67,7 +67,7 @@ public static class DomainAuditor
         // 2. Use the clean TryParse pattern to safely extract the host root
         if (!DomainName.TryParse(sanitizedInput, out var extractedHost))
         {
-            Console.WriteLine($"❌ Error: Could not parse a valid domain host from raw input: '{rawInput}'");
+            WebRequesterEvents.RaiseProcessCompleted($"Error: Could not parse a valid domain host from raw input: '{rawInput}'");
             return null;
         }
 
@@ -78,7 +78,16 @@ public static class DomainAuditor
 
         if (string.IsNullOrWhiteSpace(baseDomain))
         {
-            Console.WriteLine("❌ Error: Sanitized domain resulted in an empty string.");
+            WebRequesterEvents.RaiseProcessCompleted("Error: Sanitized domain resulted in an empty string.");
+            return null;
+        }
+
+        // Refuse to probe hosts that only resolve to loopback/private/link-local addresses (e.g. localhost,
+        // 169.254.169.254 cloud metadata, RFC1918 ranges) so this can't be used as an SSRF vector against
+        // internal infrastructure if it's ever fed untrusted input.
+        if (await ResolvesOnlyToDisallowedAddressesAsync(baseDomain))
+        {
+            WebRequesterEvents.RaiseProcessCompleted($"Error: Refusing to audit '{baseDomain}' - it resolves only to a private, loopback, or link-local address.");
             return null;
         }
 
@@ -234,6 +243,70 @@ public static class DomainAuditor
         {
             report.HtmlCanonicalTagValue = $"Error parsing tag: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    ///     Resolves <paramref name="host"/> and reports whether every address it resolves to is loopback,
+    ///     private, or link-local (i.e. there is no publicly routable address worth probing).
+    /// </summary>
+    /// <remarks>
+    ///     This is a resolve-then-check guard, not a connect-time one, so it does not fully protect against
+    ///     DNS-rebinding (a host resolving to a public address here but a private one at actual connect time).
+    ///     It stops the common case: a caller feeding in "localhost", an internal hostname, or a raw private/
+    ///     loopback IP literal.
+    /// </remarks>
+    private static async Task<bool> ResolvesOnlyToDisallowedAddressesAsync(string host)
+    {
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(host);
+            return addresses.Length == 0 || addresses.All(IsDisallowedAddress);
+        }
+        catch
+        {
+            // Can't resolve it - nothing to audit, but that's a DNS failure, not an SSRF concern.
+            return false;
+        }
+    }
+
+    private static bool IsDisallowedAddress(IPAddress address)
+    {
+        if (IPAddress.IsLoopback(address) || address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any))
+        {
+            return true;
+        }
+
+        if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6Multicast)
+        {
+            return true;
+        }
+
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+        {
+            var v6Bytes = address.GetAddressBytes();
+            if ((v6Bytes[0] & 0xfe) == 0xfc) // fc00::/7 - unique local address
+            {
+                return true;
+            }
+        }
+
+        if (address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            return false;
+        }
+
+        var b = address.GetAddressBytes();
+        return b[0] switch
+        {
+            0 => true, // 0.0.0.0/8
+            10 => true, // 10.0.0.0/8 (private)
+            127 => true, // 127.0.0.0/8 (loopback)
+            169 when b[1] == 254 => true, // 169.254.0.0/16 (link-local, incl. cloud metadata)
+            172 when b[1] is >= 16 and <= 31 => true, // 172.16.0.0/12 (private)
+            192 when b[1] == 168 => true, // 192.168.0.0/16 (private)
+            100 when b[1] is >= 64 and <= 127 => true, // 100.64.0.0/10 (carrier-grade NAT)
+            _ => false
+        };
     }
 }
 
