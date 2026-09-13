@@ -1,0 +1,24 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore web-requester.sln
+
+      - name: Test
+        run: dotnet test WebRequesterDll.Tests/WebRequesterDll.Tests.csproj --no-restore --verbosity normal

@@ -43,25 +43,41 @@ public static class Requester
     /// <param name="requestedUri"></param>
     /// <param name="timeoutSeconds">Per-call timeout override; defaults to <see cref="Timeout"/> when omitted.</param>
     /// <param name="userAgent">Per-call User-Agent override; defaults to <see cref="UserAgent"/> when omitted.</param>
+    /// <param name="cancellationToken">
+    ///     Lets the caller cancel the request explicitly, independent of the timeout. If this token is cancelled,
+    ///     the resulting <see cref="OperationCanceledException"/> propagates rather than being reported as a
+    ///     <see cref="MyEnum.RequestErrorCodeEnum.Timeout"/> result.
+    /// </param>
+    /// <param name="handler">
+    ///     Test seam: an <see cref="HttpMessageHandler"/> to issue the request through instead of the shared
+    ///     production <see cref="HttpClient"/>. Leave null in normal use.
+    /// </param>
     /// <returns></returns>
-    public static async Task<WebResponseResult> GetFromWeb(Uri requestedUri, int? timeoutSeconds = null, string? userAgent = null)
+    public static async Task<WebResponseResult> GetFromWeb(
+        Uri requestedUri,
+        int? timeoutSeconds = null,
+        string? userAgent = null,
+        CancellationToken cancellationToken = default,
+        HttpMessageHandler? handler = null)
     {
         var effectiveTimeout = timeoutSeconds ?? Timeout;
         var effectiveUserAgent = userAgent ?? UserAgent;
+        var client = handler == null ? _client : new HttpClient(handler);
 
         WebRequesterEvents.RaiseProcessCompleted("WebRequesterDll.Requester.GetFromWeb()");
         WebRequesterEvents.RaiseProcessCompleted($"UserAgent = {effectiveUserAgent}");
         WebRequesterEvents.RaiseProcessCompleted($"Timeout = {effectiveTimeout} seconds");
         WebRequesterEvents.RaiseProcessCompleted("requestorConfig");
 
-        var result = await GetFromWebEach(requestedUri, effectiveTimeout, effectiveUserAgent);
+        var result = await GetFromWebEach(client, requestedUri, effectiveTimeout, effectiveUserAgent, cancellationToken);
         return result;
     }
 
 
-    private static async Task<WebResponseResult> GetFromWebEach(Uri requestedUri, int timeoutSeconds, string userAgent)
+    private static async Task<WebResponseResult> GetFromWebEach(
+        HttpClient client, Uri requestedUri, int timeoutSeconds, string userAgent, CancellationToken cancellationToken)
     {
-        var response = await Request(_client, requestedUri.AbsoluteUri, timeoutSeconds, userAgent);
+        var response = await Request(client, requestedUri.AbsoluteUri, timeoutSeconds, userAgent, cancellationToken);
         if (response.ResponseMessage == null)
         {
             WebRequesterEvents.RaiseProcessCompleted($"ErrorMessage = {response.ResponseStatus.ErrorMessage}");
@@ -121,15 +137,17 @@ public static class Requester
     }
 
 
-    private static async Task<HttpResponseMsg> Request(HttpClient client, string url, int timeoutSeconds, string userAgent)
+    private static async Task<HttpResponseMsg> Request(
+        HttpClient client, string url, int timeoutSeconds, string userAgent, CancellationToken cancellationToken)
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.UserAgent.ParseAdd(userAgent);
 
-            var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token);
             response.EnsureSuccessStatusCode();
             return new HttpResponseMsg
             {
@@ -146,9 +164,15 @@ public static class Requester
         {
             return ErrorResult(RequestErrorCodeEnum.DnsFailure, ex.Message);
         }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
         {
             return ErrorResult(RequestErrorCodeEnum.Timeout, $"Request timed out after {timeoutSeconds} second(s).");
+        }
+        catch (OperationCanceledException)
+        {
+            // Not our timeout firing - the caller's own cancellationToken was cancelled. Propagate it as-is
+            // rather than reporting it as a Timeout/Unexpected result, per normal CancellationToken semantics.
+            throw;
         }
         catch (HttpRequestException ex) when (ex.InnerException is IOException)
         {

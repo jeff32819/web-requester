@@ -54,7 +54,7 @@ public static class DomainAuditor
         _scraperClient.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
     }
 
-    public static async Task<DomainAuditReport> AuditDomainAsync(string rawInput)
+    public static async Task<DomainAuditReport> AuditDomainAsync(string rawInput, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(rawInput))
         {
@@ -85,7 +85,7 @@ public static class DomainAuditor
         // Refuse to probe hosts that only resolve to loopback/private/link-local addresses (e.g. localhost,
         // 169.254.169.254 cloud metadata, RFC1918 ranges) so this can't be used as an SSRF vector against
         // internal infrastructure if it's ever fed untrusted input.
-        if (await ResolvesOnlyToDisallowedAddressesAsync(baseDomain))
+        if (await ResolvesOnlyToDisallowedAddressesAsync(baseDomain, cancellationToken))
         {
             WebRequesterEvents.RaiseProcessCompleted($"Error: Refusing to audit '{baseDomain}' - it resolves only to a private, loopback, or link-local address.");
             return null;
@@ -106,7 +106,7 @@ public static class DomainAuditor
         // --- CONCURRENT NETWORK TRACE ---
 
         // 1. Kick off all 4 network trace tasks at the exact same time
-        var traceTasks = variants.Select(TraceUrlAsync).ToList();
+        var traceTasks = variants.Select(v => TraceUrlAsync(v, cancellationToken)).ToList();
 
         // 2. Await them all concurrently
         var completedTraces = await Task.WhenAll(traceTasks);
@@ -137,13 +137,13 @@ public static class DomainAuditor
 
         if (!string.IsNullOrEmpty(report.DiscoveredPrimaryUrl))
         {
-            await AuditHtmlCanonicalTagAsync(report);
+            await AuditHtmlCanonicalTagAsync(report, cancellationToken);
         }
 
         return report;
     }
 
-    private static async Task<EndpointTrace> TraceUrlAsync(string url)
+    private static async Task<EndpointTrace> TraceUrlAsync(string url, CancellationToken cancellationToken)
     {
         var trace = new EndpointTrace { StartingUrl = url };
         var currentUrl = url;
@@ -153,7 +153,7 @@ public static class DomainAuditor
         {
             while (trace.HopCount < maxHops)
             {
-                using var response = await _scraperClient.GetAsync(currentUrl);
+                using var response = await _scraperClient.GetAsync(currentUrl, cancellationToken);
                 trace.FinalStatusCode = (int)response.StatusCode;
 
                 // Extract the SSL value captured during the handshake layer
@@ -212,11 +212,11 @@ public static class DomainAuditor
         return trace;
     }
 
-    private static async Task AuditHtmlCanonicalTagAsync(DomainAuditReport report)
+    private static async Task AuditHtmlCanonicalTagAsync(DomainAuditReport report, CancellationToken cancellationToken)
     {
         try
         {
-            var html = await _scraperClient.GetStringAsync(report.DiscoveredPrimaryUrl);
+            var html = await _scraperClient.GetStringAsync(report.DiscoveredPrimaryUrl, cancellationToken);
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
 
@@ -255,21 +255,25 @@ public static class DomainAuditor
     ///     It stops the common case: a caller feeding in "localhost", an internal hostname, or a raw private/
     ///     loopback IP literal.
     /// </remarks>
-    private static async Task<bool> ResolvesOnlyToDisallowedAddressesAsync(string host)
+    private static async Task<bool> ResolvesOnlyToDisallowedAddressesAsync(string host, CancellationToken cancellationToken)
     {
         try
         {
-            var addresses = await Dns.GetHostAddressesAsync(host);
+            var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
             return addresses.Length == 0 || addresses.All(IsDisallowedAddress);
         }
-        catch
+        catch (Exception) when (cancellationToken.IsCancellationRequested == false)
         {
             // Can't resolve it - nothing to audit, but that's a DNS failure, not an SSRF concern.
             return false;
         }
     }
 
-    private static bool IsDisallowedAddress(IPAddress address)
+    /// <summary>
+    ///     Internal (rather than private) so it can be unit tested directly without hitting real DNS - see
+    ///     WebRequesterDll.Tests.
+    /// </summary>
+    internal static bool IsDisallowedAddress(IPAddress address)
     {
         if (IPAddress.IsLoopback(address) || address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any))
         {
