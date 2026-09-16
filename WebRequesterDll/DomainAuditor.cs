@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using System.Net.Security;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 
@@ -7,7 +6,6 @@ namespace WebRequesterDll;
 
 public static class DomainAuditor
 {
-    private const string SslExpiryKey = "SslExpiry";
     private static readonly HttpClient _scraperClient;
 
     static DomainAuditor()
@@ -15,35 +13,9 @@ public static class DomainAuditor
         var handler = new HttpClientHandler
         {
             AllowAutoRedirect = false,
-            ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
-            {
-                if (message.RequestUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
-                {
-                    try
-                    {
-                        // 1. Verify if the certificate has policy issues (expired, host mismatch, untrusted root)
-                        var isValid = errors == SslPolicyErrors.None;
-
-                        if (isValid && cert != null && DateTime.TryParse(cert.GetExpirationDateString(), out var expiry))
-                        {
-                            // PASS: Store the valid timestamp
-                            message.Options.Set(new HttpRequestOptionsKey<DateTime>(SslExpiryKey), expiry);
-                        }
-                        else
-                        {
-                            // FAIL: Pass MinValue as a sentinel flag meaning "SSL exists but is broken/untrusted"
-                            message.Options.Set(new HttpRequestOptionsKey<DateTime>(SslExpiryKey), DateTime.MinValue);
-                        }
-                    }
-                    catch
-                    {
-                        // Fail-safe protection fallback
-                        message.Options.Set(new HttpRequestOptionsKey<DateTime>(SslExpiryKey), DateTime.MinValue);
-                    }
-                }
-
-                return true; // Return true to prevent HttpClient from throwing a terminal WebException
-            }
+            // Certs are not evaluated here - we still want to trace/canonicalize a host even if its
+            // certificate is expired or untrusted. SSL verification is a separate concern (SslVerify).
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
         };
 
         _scraperClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(6) };
@@ -156,12 +128,6 @@ public static class DomainAuditor
                 using var response = await _scraperClient.GetAsync(currentUrl, cancellationToken);
                 trace.FinalStatusCode = (int)response.StatusCode;
 
-                // Extract the SSL value captured during the handshake layer
-                if (response.RequestMessage.Options.TryGetValue(new HttpRequestOptionsKey<DateTime>(SslExpiryKey), out var expiryDate))
-                {
-                    trace.SslExpirationDate = expiryDate;
-                }
-
                 if (response.StatusCode == HttpStatusCode.MovedPermanently ||
                     response.StatusCode == HttpStatusCode.Found ||
                     response.StatusCode == (HttpStatusCode)307 ||
@@ -200,13 +166,6 @@ public static class DomainAuditor
             trace.IsUnreachable = true;
             trace.ErrorMessage = ex.InnerException?.Message ?? ex.Message;
             trace.FinalResolvedUrl = currentUrl;
-
-            // Handle complete connection/DNS dropouts (Status 0 errors)
-            if (currentUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && trace.SslExpirationDate == null)
-            {
-                // If an HTTPS trace crashed out at socket level before dropping options, it failed SSL handshake/reachability entirely
-                trace.SslExpirationDate = DateTime.MinValue;
-            }
         }
 
         return trace;
@@ -325,44 +284,6 @@ public class DomainAuditReport
     public string HtmlCanonicalTagValue { get; set; }
     public bool CanonicalTagMatchesDestination { get; set; }
 
-
-    /// <summary>
-    ///     Returns unified SSL health data ONLY if there is exactly 1 unique destination.
-    ///     Returns null if there are canonicalization splits or zero site resolution.
-    /// </summary>
-    public ConsolidatedSslDetails ConsolidatedSsl
-    {
-        get
-        {
-            if (UniqueDestinations.Count != 1 || string.IsNullOrEmpty(DiscoveredPrimaryUrl))
-            {
-                return null; // Grouped atomic nullability state
-            }
-
-            // Locate the exact trace path that resolved to the single primary winning endpoint
-            var primaryTrace = Traces.FirstOrDefault(t =>
-                t.FinalResolvedUrl != null &&
-                t.FinalResolvedUrl.ToLower().TrimEnd('/') == DiscoveredPrimaryUrl.ToLower().TrimEnd('/'));
-
-            if (primaryTrace == null)
-            {
-                return null;
-            }
-
-            return new ConsolidatedSslDetails
-            {
-                DomainName = !string.IsNullOrEmpty(primaryTrace.FinalResolvedUrl)
-                    ? new Uri(primaryTrace.FinalResolvedUrl).Host
-                    : BaseDomain,
-                IsSslValid = primaryTrace.IsSslValid,
-                ExpirationDate = primaryTrace.SslExpirationDate,
-                ExpiresInDays = primaryTrace.SslExpirationDate == null || primaryTrace.SslExpirationDate == DateTime.MinValue
-                    ? null
-                    : (int)(primaryTrace.SslExpirationDate.Value - DateTime.UtcNow).TotalDays
-            };
-        }
-    }
-
     // =========================================================================
     // NEW: ENCAPSULATED HTML CANONICAL CONTAINER
     // =========================================================================
@@ -415,17 +336,6 @@ public class HtmlCanonicalDetails
     public string Message { get; }
 }
 
-/// <summary>
-///     Holds consolidated metrics for single-destination domains.
-/// </summary>
-public class ConsolidatedSslDetails
-{
-    public string DomainName { get; set; }
-    public bool? IsSslValid { get; set; }
-    public DateTime? ExpirationDate { get; set; }
-    public int? ExpiresInDays { get; set; }
-}
-
 public enum CanonicalTagStatus
 {
     NoSiteResolution,
@@ -442,13 +352,4 @@ public class EndpointTrace
     public int FinalStatusCode { get; set; }
     public bool IsUnreachable { get; set; }
     public string ErrorMessage { get; set; }
-
-    // Master Model Properties
-    public DateTime? SslExpirationDate { get; set; }
-
-    // Nullable Expression-Bodied shorthand logic
-    // Null = Plain text HTTP route (No evaluation checked)
-    // False = Encountered bad/mismatched/unreachable certificate configuration (MinValue)
-    // True = Clean, valid handshake resolved
-    public bool? IsSslValid => SslExpirationDate == null ? null : SslExpirationDate.Value != DateTime.MinValue;
 }

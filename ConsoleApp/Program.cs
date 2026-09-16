@@ -11,14 +11,7 @@ Console.WriteLine($"Has SEO Issue? {report.HasCanonicalizationIssue}");
 Console.WriteLine();
 foreach (var trace in report.Traces)
 {
-    var sslInfo = trace.SslExpirationDate.HasValue
-        ? $"SSL Expires: {trace.SslExpirationDate.Value.ToShortDateString()}"
-        : "No SSL/HTTP";
-
-
     Console.WriteLine($"{trace.StartingUrl}");
-    Console.WriteLine($"\t-- {sslInfo}");
-    Console.WriteLine($"\t-- IsSslValid: {trace.IsSslValid}");
 
     if (trace.HopCount > 0)
     {
