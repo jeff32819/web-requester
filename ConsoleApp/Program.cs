@@ -1,40 +1,42 @@
 ﻿using Newtonsoft.Json;
+
 using WebRequesterDll;
 
-var report = await DomainAuditor.AuditDomainAsync("jeff32819.com");
 
-if (report != null)
+const string domainName = "jeff32819.com";
+var report = await DomainAuditor.AuditDomainAsync(domainName);
+Console.WriteLine($"Discovered Primary URL: {report.DiscoveredPrimaryUrl ?? "None Found"}");
+Console.WriteLine($"HTML Canonical Tag Found: {report.HtmlCanonicalTagValue ?? "NONE DETECTED"}");
+Console.WriteLine($"Has SEO Issue? {report.HasCanonicalizationIssue}");
+Console.WriteLine();
+foreach (var trace in report.Traces)
 {
-    Console.WriteLine($"Discovered Primary URL: {report.DiscoveredPrimaryUrl ?? "None Found"}");
-    Console.WriteLine($"HTML Canonical Tag Found: {report.HtmlCanonicalTagValue ?? "NONE DETECTED"}");
-    Console.WriteLine($"Has SEO Issue? {report.HasCanonicalizationIssue}");
-    Console.WriteLine();
-    foreach (var trace in report.Traces)
+    var sslInfo = trace.SslExpirationDate.HasValue
+        ? $"SSL Expires: {trace.SslExpirationDate.Value.ToShortDateString()}"
+        : "No SSL/HTTP";
+
+
+    Console.WriteLine($"{trace.StartingUrl}");
+    Console.WriteLine($"\t-- {sslInfo}");
+    Console.WriteLine($"\t-- IsSslValid: {trace.IsSslValid}");
+
+    if (trace.HopCount > 0)
     {
-        var sslInfo = trace.SslExpirationDate.HasValue
-            ? $"SSL Expires: {trace.SslExpirationDate.Value.ToShortDateString()}"
-            : "No SSL/HTTP";
-
-
-        Console.WriteLine($"{trace.StartingUrl}");
-        Console.WriteLine($"\t-- {sslInfo}");
-        Console.WriteLine($"\t-- IsSslValid: {trace.IsSslValid}");
-        
-        if (trace.HopCount > 0)
-        {
-            Console.WriteLine($"\t-- (Redirected in {trace.HopCount} hop)");
-            Console.WriteLine($"\t-- Ended at: {trace.FinalResolvedUrl}");
-            Console.WriteLine($"\t-- (Status: {trace.FinalStatusCode})");
-        }
-        else
-        {
-            Console.WriteLine($"\t-- (Loaded directly with Status: {trace.FinalStatusCode})");
-        }
-        Console.WriteLine();
+        Console.WriteLine($"\t-- (Redirected in {trace.HopCount} hop)");
+        Console.WriteLine($"\t-- Ended at: {trace.FinalResolvedUrl}");
+        Console.WriteLine($"\t-- (Status: {trace.FinalStatusCode})");
     }
-
-//    Console.WriteLine(report.CanonicalMessage);
+    else
+    {
+        Console.WriteLine($"\t-- (Loaded directly with Status: {trace.FinalStatusCode})");
+    }
+    Console.WriteLine();
 }
+
+
+/*** GET PAGE BELOW *********************************************************************/
+
+
 var reportPath = Path.Combine(AppContext.BaseDirectory, "audit-report.json");
 File.WriteAllText(reportPath, JsonConvert.SerializeObject(report, Formatting.Indented));
 Console.WriteLine($"Report written to {reportPath}");
