@@ -1,11 +1,12 @@
 // ReSharper disable UnusedMember.Global
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+
 using static WebRequesterDll.MyEnum;
 
 namespace WebRequesterDll.Models
 {
-    public class HttpReponseStatus
+    public class HttpResponseStatus
     {
         public int StatusCode { get; set; } = 0;
 

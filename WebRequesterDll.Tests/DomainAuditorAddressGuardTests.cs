@@ -21,6 +21,8 @@ public class DomainAuditorAddressGuardTests
     [InlineData("::1")] // IPv6 loopback
     [InlineData("fe80::1")] // IPv6 link-local
     [InlineData("fc00::1")] // IPv6 unique local
+    [InlineData("::ffff:169.254.169.254")] // IPv4-mapped IPv6 - cloud metadata endpoint
+    [InlineData("::ffff:127.0.0.1")] // IPv4-mapped IPv6 - loopback
     public void IsDisallowedAddress_ReturnsTrue_ForPrivateLoopbackOrLinkLocalAddresses(string ip)
     {
         var address = IPAddress.Parse(ip);

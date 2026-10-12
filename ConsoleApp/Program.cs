@@ -5,6 +5,12 @@ using WebRequesterDll;
 
 const string domainName = "jeff32819.com";
 var report = await DomainAuditor.AuditDomainAsync(domainName);
+if (report == null)
+{
+    Console.WriteLine($"Could not audit '{domainName}' - no valid, publicly routable host could be resolved.");
+    return;
+}
+
 Console.WriteLine($"Discovered Primary URL: {report.DiscoveredPrimaryUrl ?? "None Found"}");
 Console.WriteLine($"HTML Canonical Tag Found: {report.HtmlCanonicalTagValue ?? "NONE DETECTED"}");
 Console.WriteLine($"Has SEO Issue? {report.HasCanonicalizationIssue}");

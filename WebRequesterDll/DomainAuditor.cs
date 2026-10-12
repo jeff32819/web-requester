@@ -12,10 +12,7 @@ public static class DomainAuditor
     {
         var handler = new HttpClientHandler
         {
-            AllowAutoRedirect = false,
-            // Certs are not evaluated here - we still want to trace/canonicalize a host even if its
-            // certificate is expired or untrusted. SSL verification is a separate concern (SslVerify).
-            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+            AllowAutoRedirect = false
         };
 
         _scraperClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(6) };
@@ -26,7 +23,7 @@ public static class DomainAuditor
         _scraperClient.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
     }
 
-    public static async Task<DomainAuditReport> AuditDomainAsync(string rawInput, CancellationToken cancellationToken = default)
+    public static async Task<DomainAuditReport?> AuditDomainAsync(string rawInput, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(rawInput))
         {
@@ -234,6 +231,13 @@ public static class DomainAuditor
     /// </summary>
     internal static bool IsDisallowedAddress(IPAddress address)
     {
+        // Unwrap IPv4-mapped IPv6 literals (e.g. "::ffff:169.254.169.254") so they're classified by
+        // their real IPv4 range instead of silently falling through every IPv6-specific check below.
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
+        }
+
         if (IPAddress.IsLoopback(address) || address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any))
         {
             return true;

@@ -1,6 +1,8 @@
 ﻿using System.Net.Sockets;
 using System.Security.Authentication;
+
 using WebRequesterDll.Models;
+
 using static WebRequesterDll.MyEnum;
 
 namespace WebRequesterDll;
@@ -152,7 +154,7 @@ public static class Requester
             return new HttpResponseMsg
             {
                 ResponseMessage = response,
-                ResponseStatus = new HttpReponseStatus
+                ResponseStatus = new HttpResponseStatus
                 {
                     StatusCode = (int)response.StatusCode,
                     ErrorCode = RequestErrorCodeEnum.None
@@ -205,7 +207,7 @@ public static class Requester
         return new HttpResponseMsg
         {
             ResponseMessage = null,
-            ResponseStatus = new HttpReponseStatus
+            ResponseStatus = new HttpResponseStatus
             {
                 StatusCode = statusCode,
                 ErrorCode = errorCode,
