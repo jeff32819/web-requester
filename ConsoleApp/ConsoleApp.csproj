@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="JLog" Version="1.0.26" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>
